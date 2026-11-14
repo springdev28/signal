@@ -1,6 +1,6 @@
 # Omnecarta rebuild verification
 
-The web app includes Explore Omnecarta, Play Story and My Collection. Browser coverage runs in desktop Chrome and a mobile Chrome viewport with emulated touch. The production build uses Node.js 24 and Vite.
+Hostinger published the Node.js 24 and Vite production build on November 14, 2026. All 12 Playwright checks passed on the live site in desktop Chrome and a mobile Chrome viewport with emulated touch. The story, collection, and Lunar Roving Vehicle direct routes also returned HTTP 200.
 
 - Open the Moon and Mars guides, compare their surface conditions, and inspect both exhibits before playing. Reload a direct exhibit route and confirm that browsing leaves My Collection empty.
 - Start Play Story at the homepage. Move Astra with the keyboard or touch direction controls, scan two landmarks, and follow distance, bearing, and signal strength to the wreck. Confirm that the graph receives distinct readings and a reload restores position and observations.

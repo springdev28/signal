@@ -6,6 +6,7 @@ import { loadFlight, recoveredLogs } from './flight-state';
 import { createStoryScene } from './story-scene';
 import { chartSurface } from './chart';
 import { link } from './catalog';
+import { createGroundMotion, movementKeys, relativeMovement, type GroundDirection } from './locomotion';
 
 const initialClues = [
   'An old beacon is broadcasting near the crater rim.',
@@ -16,8 +17,8 @@ const objectives:Record<Phase,string> = {
   briefing:'Locate the rover, recover three parts, and rebuild it.',
   search:'Scan at the twin spires and the wheel tracks.',
   locate:'Follow the signal. Scan within reach to reveal the wreck.',
-  recover:'Inspect and recover three parts near the wreck.',
-  assemble:'Fit all three parts to the correct mounts.',
+  recover:'Recover the locked parts.',
+  assemble:'Reassemble Opportunity.',
   complete:'Opportunity is in My Collection.',
 };
 
@@ -29,7 +30,7 @@ export function storyMarkup() {
   <div class="mission-layout" id="mission-layout">
     <aside class="mission-panel mission-brief">
       <div class="mission-objective"><h2>Objective</h2><p id="objective"></p><span id="progress" class="coordinates"></span></div>
-      <div id="briefing">
+      <div id="briefing" hidden>
         <ol>${initialClues.map(clue => `<li>${clue}</li>`).join('')}</ol>
         <button class="button primary" id="start-mission">Start mission</button>
       </div>
@@ -37,14 +38,14 @@ export function storyMarkup() {
       <div class="mission-actions"><button class="button outline" id="clues-button">Clues</button>
         <button class="button outline" id="story-help" aria-controls="control-notes" aria-expanded="false">Controls</button>
         <button class="button outline scanner-toggle" type="button" id="scanner-toggle" aria-controls="detail-drawer" aria-expanded="false">Map &amp; scanner</button></div>
-      <p id="control-notes" hidden>Move with WASD, the arrow keys, or the direction buttons. Drag to orbit and scroll or pinch to zoom. Press E to scan or inspect.</p>
+      <p id="control-notes" hidden>WASD and arrows move relative to your camera. Drag to look, scroll or pinch to zoom. E scans or inspects the nearest part.</p>
     </aside>
     <div class="mission-main">
       <section class="mission-view" aria-label="Mission view">
         <div id="mission-stage">
-          <p id="scene-status" role="status">Loading 3D scene…</p>
+          <p id="scene-status" role="status">Loading 3D scene…</p><div id="surface-waypoint-hud" class="surface-waypoint-hud" hidden></div>
         </div>
-        <div class="scene-toolbar">
+        <details class="scene-toolbar"><summary>${icon('sliders',16)} Camera</summary>
         <div class="scene-controls" aria-label="Camera controls">
           <button data-camera="left" aria-label="Orbit left" title="Orbit left">${icon('left',18)}</button>
           <button data-camera="right" aria-label="Orbit right" title="Orbit right">${icon('right',18)}</button>
@@ -52,15 +53,15 @@ export function storyMarkup() {
           <button data-camera="out" aria-label="Zoom out" title="Zoom out">${icon('minus',18)}</button>
           <button data-camera="reset" aria-label="Reset view" title="Reset view">${icon('reset',18)}</button>
         </div>
-        </div>
+        </details>
         <div class="scene-caption" role="status"><span>Solaris</span><p id="scene-caption"></p></div>
       </section>
       <div id="field-controls" class="mission-panel field-controls" hidden>
         <div class="direction-pad" aria-label="Move Astra">
-          <button data-move="north" aria-label="Move north">${icon('up',18)}</button>
-          <button data-move="west" aria-label="Move west">${icon('back',18)}</button>
-          <button data-move="south" aria-label="Move south">${icon('lower',18)}</button>
-          <button data-move="east" aria-label="Move east">${icon('arrow',18)}</button>
+          <button data-move="forward" aria-label="Move forward">${icon('up',18)}</button>
+          <button data-move="left" aria-label="Move left">${icon('back',18)}</button>
+          <button data-move="backward" aria-label="Move backward">${icon('lower',18)}</button>
+          <button data-move="right" aria-label="Move right">${icon('arrow',18)}</button>
         </div>
         <div class="field-actions"><div class="mission-actions">
           <button class="button primary" id="scan">${icon('scan',18)} Scan</button>
@@ -75,7 +76,7 @@ export function storyMarkup() {
       </section>
     </div>
     <aside class="mission-sidebar" id="mission-sidebar">
-      <section id="navigation-tools" class="mission-panel"><h2>Map &amp; scanner</h2>
+      <details id="navigation-tools" class="mission-panel"><summary>Map &amp; scanner</summary>
         <div id="minimap" class="minimap" role="img" aria-label="Map of the crater rim"><span class="map-north">N ↑</span>
           <span class="map-marker map-spires" title="Twin spires">S</span><span class="map-marker map-tracks" title="Wheel tracks">T</span>
           <span id="map-wreck" class="map-marker map-wreck" title="Wreck" hidden>W</span><span id="map-player" class="map-marker map-player" title="Astra">A</span>
@@ -85,7 +86,7 @@ export function storyMarkup() {
         <div id="recovery-waypoints" hidden><label>Locked waypoint<select id="surface-waypoint"></select></label><p id="waypoint-reading"></p><p id="waypoint-clue"></p></div>
         <figure class="signal-figure"><canvas id="signal-chart" width="360" height="175" role="img" aria-label="Signal strength by distance. No samples yet."></canvas>
           <figcaption>Signal (%) by distance (m). Dots mark scans. The ring follows Astra.</figcaption></figure>
-      </section>
+      </details>
       <section id="workbench" class="mission-panel" hidden>
         <h2>Workbench</h2><p>Match each part to a mount. Rotate it before fitting, or drag it onto the mount.</p>
         <p id="assembly-clue" aria-live="polite">Select a recovered part to read its fitting clue.</p>
@@ -129,10 +130,11 @@ export function mountStory(solaris: SolarisContext) {
   }
   let selected:PartId|null=null, angle=0, inspection:PartId|null=null;
   let cutscene=false, cutMode:'timed'|'missed'|'untimed'='timed', timer=0, deadline=0;
-  let lastSave=0, lastGraph=0, talkUntil=0;
+  let lastSave=0, lastGraph=0, talkUntil=0,captionTimer=0;
   let pausedForChat = false, timeRemaining = 0, transitioning = false;
-  const keys=new Set<string>();
-  const pointers=new Map<number,string>();
+  const keys=new Set<GroundDirection>();
+  const pointers=new Map<number,GroundDirection>();
+  const motion=createGroundMotion(6.6);
   const nav=$('navigation-tools'), stage=$('mission-stage');
   const briefing=$('briefing'), field=$('field-controls'), workbench=$('workbench');
   const scanButton=$<HTMLButtonElement>('scan'), interact=$<HTMLButtonElement>('interact');
@@ -140,10 +142,11 @@ export function mountStory(solaris: SolarisContext) {
   const cutDialog=$<HTMLDialogElement>('story-cutscene'), partDialog=$<HTMLDialogElement>('part-dialog');
   const notes=$<HTMLDialogElement>('story-notes');
   const toolsDrawer=$<HTMLDialogElement>('detail-drawer');
-  mountDrawer($('mission-sidebar'),toolsDrawer,$<HTMLButtonElement>('scanner-toggle'));
+  mountDrawer($('mission-sidebar'),toolsDrawer,$<HTMLButtonElement>('scanner-toggle'),false);
+  toolsDrawer.addEventListener('toggle',()=>{if(toolsDrawer.open)(nav as HTMLDetailsElement).open=true;});
   const chart=$<HTMLCanvasElement>('signal-chart');
   const canWalk=()=>['search','locate','recover'].includes(state.phase)&&!transitioning&&!document.querySelector('dialog[open]');
-  const sceneState=()=>({save:state,selection:selected,angle,cutscene,talkUntil,waypoint:hasFixes&&state.phase==='recover'?flight.contacts[waypoint]:undefined});
+  const sceneState=()=>({save:state,selection:selected,angle,cutscene,talkUntil,waypoint:state.phase==='recover'?(hasFixes?flight.contacts[waypoint]:{x:partById(waypoint)!.position[0],z:partById(waypoint)!.position[1],uncertainty:2,locked:true}):state.phase==='search'?{x:missionSite.landmarks[state.observed.includes(0)?1:0].position[0],z:missionSite.landmarks[state.observed.includes(0)?1:0].position[1],uncertainty:2,locked:true}:undefined,waypointLabel:state.phase==='recover'?partById(waypoint)!.name:missionSite.landmarks[state.observed.includes(0)?1:0].name});
   if(hasFixes){
     const select=$<HTMLSelectElement>('surface-waypoint');
     select.innerHTML=missionSite.parts.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
@@ -171,10 +174,14 @@ export function mountStory(solaris: SolarisContext) {
   });
 
   function say(line: string) {
-    talkUntil=performance.now()+2600;
+    const duration=Math.max(3500,Math.min(8500,line.length*48));talkUntil=performance.now()+duration;
+    clearTimeout(captionTimer);captionTimer=window.setTimeout(()=>{$('scene-caption').textContent='';},duration);
     state.history.push(line);
     state.history = state.history.slice(-30);
     $('scene-caption').textContent = line;
+    const caption=$('scene-caption').parentElement!;
+    caption.classList.remove('caption-enter');
+    requestAnimationFrame(()=>caption.classList.add('caption-enter'));
   }
   function setPhase(phase:Phase) {
     state.phase=phase;
@@ -192,8 +199,8 @@ export function mountStory(solaris: SolarisContext) {
     return `${Math.abs(Math.round(x))} m ${x<0?'W':'E'} · ${Math.abs(Math.round(z))} m ${z<0?'N':'S'}`;
   }
   function mapPoint(el:HTMLElement,point:Point){
-    el.style.left=((point[0]+18)/36*87+6.5)+'%';
-    el.style.top=((point[1]+18)/36*87+6.5)+'%';
+    el.style.left=((point[0]+missionSite.extent)/(missionSite.extent*2)*87+6.5)+'%';
+    el.style.top=((point[1]+missionSite.extent)/(missionSite.extent*2)*87+6.5)+'%';
   }
   mapPoint(stage.closest('article')!.querySelector<HTMLElement>('.map-spires')!,missionSite.landmarks[0].position);
   mapPoint(stage.closest('article')!.querySelector<HTMLElement>('.map-tracks')!,missionSite.landmarks[1].position);
@@ -211,7 +218,7 @@ export function mountStory(solaris: SolarisContext) {
       $('waypoint-reading').textContent=`${distance(state.x,state.z,[fix.x,fix.z]).toFixed(1)} m · ${bearing(state.x,state.z,[fix.x,fix.z])}° · fix ±${fix.uncertainty.toFixed(1)} m`;
     }
     const part=nearestPart();
-    interact.disabled=!part;
+    interact.disabled=!part;interact.hidden=!part;
     interact.textContent=part?'Inspect '+part.name:'Inspect part';
     $('nearby').textContent=part?'Within reach':'Move within reach of a part.';
   }
@@ -263,7 +270,7 @@ export function mountStory(solaris: SolarisContext) {
     briefing.hidden=state.phase!=='briefing';
     field.hidden=!['search','locate','recover'].includes(state.phase);
     nav.hidden=state.phase==='assemble'||state.phase==='complete';
-    interact.hidden=state.phase!=='recover';
+    interact.hidden=state.phase!=='recover'||!nearestPart();
     $('recovery-waypoints').hidden=!hasFixes||state.phase!=='recover';
     if(hasFixes){
       $<HTMLSelectElement>('surface-waypoint').value=waypoint;
@@ -291,51 +298,47 @@ export function mountStory(solaris: SolarisContext) {
     scene?.update(sceneState());
   }
 
-  const vectors:Record<string,Point>={north:[0,-1],south:[0,1],west:[-1,0],east:[1,0]};
   function move(seconds:number){
-    if(!canWalk()||(!keys.size&&!pointers.size))return;
-    let dx=0,dz=0;
-    for(const direction of new Set([...keys,...pointers.values()])){
-      const [x,z]=vectors[direction];dx+=x;dz+=z;
-    }
-    const length=Math.hypot(dx,dz);
-    if(!length)return;
-    state.x=Math.max(-18,Math.min(18,state.x+dx/length*seconds*6.6));
-    state.z=Math.max(-18,Math.min(18,state.z+dz/length*seconds*6.6));
+    if(!canWalk()){motion.stop();keys.clear();pointers.clear();return;}
+    const input=relativeMovement([...keys,...pointers.values()],scene?.movementHeading()??0);
+    const step=motion.step(input.x,input.z,seconds);
+    stage.dataset.speed=step.speed.toFixed(3);
+    if(!step.speed)return;
+    state.x=Math.max(-missionSite.extent,Math.min(missionSite.extent,state.x+step.x));
+    state.z=Math.max(-missionSite.extent,Math.min(missionSite.extent,state.z+step.z));
     renderPosition();
     const now=performance.now();
     if(now-lastSave>340){saveStory(state);lastSave=now;}
   }
-  const controls:Record<string,string>={w:'north',arrowup:'north',s:'south',arrowdown:'south',a:'west',arrowleft:'west',d:'east',arrowright:'east'};
   document.addEventListener('keydown',event=>{
     if((event.target as HTMLElement).matches('select,input,textarea')||!canWalk())return;
     const key=event.key.toLowerCase();
-    if(controls[key]){event.preventDefault();keys.add(controls[key]);}
+    if(movementKeys[key]){event.preventDefault();keys.add(movementKeys[key]);}
     if(key==='e'&&!event.repeat){event.preventDefault();nearestPart()&&state.phase==='recover'?inspect():scan();}
   });
   document.addEventListener('keyup',event=>{
-    const direction=controls[event.key.toLowerCase()];
+    const direction=movementKeys[event.key.toLowerCase()];
     if(direction&&keys.delete(direction))saveStory(state);
   });
-  function stopMovement(){keys.clear();pointers.clear();saveStory(state);}
+  function stopMovement(){keys.clear();pointers.clear();motion.stop();saveStory(state);}
   window.addEventListener('blur',stopMovement);
   window.addEventListener('pagehide',stopMovement);
   for(const button of document.querySelectorAll<HTMLButtonElement>('[data-move]')){
-    const direction=button.dataset.move!;
+    const direction=button.dataset.move as GroundDirection;
     button.addEventListener('pointerdown',event=>{
       if(!canWalk())return;
       button.setPointerCapture(event.pointerId);
       pointers.set(event.pointerId,direction);
-      move(.11);
+      event.preventDefault();
     });
     for(const event of ['pointerup','pointercancel','lostpointercapture']){
       button.addEventListener(event,e=>{pointers.delete((e as PointerEvent).pointerId);saveStory(state);});
     }
     button.addEventListener('click',event=>{
       if(event.detail===0&&canWalk()){
-        const [x,z]=vectors[direction];
-        state.x=Math.max(-18,Math.min(18,state.x+x));
-        state.z=Math.max(-18,Math.min(18,state.z+z));
+        const {x,z}=relativeMovement([direction],scene?.movementHeading()??0);
+        state.x=Math.max(-missionSite.extent,Math.min(missionSite.extent,state.x+x));
+        state.z=Math.max(-missionSite.extent,Math.min(missionSite.extent,state.z+z));
         commit();
       }
     });
@@ -561,7 +564,7 @@ export function mountStory(solaris: SolarisContext) {
     button.addEventListener('click',()=>$<HTMLDialogElement>(button.dataset.close!).close());
   }
   if(!state.history.length)say('Astra, we have a signal near the crater rim. Review the clues before heading out.');
-  else $('scene-caption').textContent=state.history.at(-1)!;
+  else {const line=state.history.at(-1)!;$('scene-caption').textContent=line;captionTimer=window.setTimeout(()=>{$('scene-caption').textContent='';},Math.max(3500,Math.min(8500,line.length*48)));}
   const last=state.samples.at(-1);
   if(last)showReading(`Last scan · ${last.distance} m · signal ${last.strength}%`);
   commit();

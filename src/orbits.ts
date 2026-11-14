@@ -14,8 +14,8 @@ export function orbitMarkup(odyssey = false, home = false) {
       <p>${odyssey ? 'Locate Mars. Find the transmission. Deploy Astra.' : 'Choose a world in orbit. Find a site. Step onto the surface.'}</p>
     </header>
     <div class="orbital-targets" aria-label="Destinations">
-      <button class="world-target" data-world="moon" aria-pressed="false"><span class="target-disc" style="background-image:url('${asset('moon-albedo.jpg')}')"></span><span>Moon<small>Hadley–Apennine</small></span>${icon('arrow',18)}</button>
-      <button class="world-target" data-world="mars" aria-pressed="false"><span class="target-disc" style="background-image:url('${asset('mars-albedo.jpg')}')"></span><span>Mars<small>${odyssey ? 'Unresolved transmission' : 'Meridiani Planum'}</small></span>${icon('arrow',18)}</button>
+      <button class="world-target" data-world="moon" aria-pressed="false"><span class="target-disc" style="background-image:url('${asset('moon-albedo.webp')}')"></span><span>Moon<small>Hadley–Apennine</small></span>${icon('arrow',18)}</button>
+      <button class="world-target" data-world="mars" aria-pressed="false"><span class="target-disc" style="background-image:url('${asset('mars-albedo.webp')}')"></span><span>Mars<small>${odyssey ? 'Unresolved transmission' : 'Meridiani Planum'}</small></span>${icon('arrow',18)}</button>
     </div>
     <section class="orbit-inspector hud-panel" id="orbit-selection" hidden aria-live="polite">
       <button class="close" id="close-orbit-selection" aria-label="Clear destination">×</button>
@@ -60,7 +60,7 @@ export async function mountOrbits(context: SolarisContext, odyssey = false) {
   const host = document.querySelector<HTMLElement>('#orbital-space')!;
   const frame = document.querySelector<HTMLElement>('.orbital-interface')!;
   const loader = new THREE.TextureLoader();
-  const [moonMap, marsMap, earthMap] = await Promise.all(['moon-albedo.jpg','mars-albedo.jpg','earth-albedo.jpg'].map(name => loader.loadAsync(asset(name))));
+  const [moonMap, marsMap, earthMap] = await Promise.all(['moon-albedo.webp','mars-albedo.webp','earth-albedo.jpg'].map(name => loader.loadAsync(asset(name))));
   for (const map of [moonMap, marsMap, earthMap]) { map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 4; }
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x06151c);

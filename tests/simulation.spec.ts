@@ -1,23 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
+import { walkTo } from './ground-navigation';
 
 async function position(page:Page){return (await page.locator('#surface-stage').getAttribute('data-position'))!.split(',').map(Number);}
 
-async function walk(page:Page,axis:number,target:number,touch:boolean){
-  const positive=target>(await position(page))[axis];
-  const direction=axis===0?(positive?'east':'west'):(positive?'south':'north');
-  const key=axis===0?(positive?'d':'a'):(positive?'s':'w');
-  if(touch){
-    const rect=(await page.getByRole('button',{name:'Move '+direction,exact:true}).boundingBox())!;
-    const cdp=await page.context().newCDPSession(page);
-    await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:rect.x+rect.width/2,y:rect.y+rect.height/2}]});
-    try { await expect.poll(async()=>Math.abs(target-(await position(page))[axis]),{timeout:18000,intervals:[40]}).toBeLessThan(.5); }
-    finally {await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await cdp.detach();}
-  }else{
-    await page.keyboard.down(key);
-    try{await expect.poll(async()=>Math.abs(target-(await position(page))[axis]),{timeout:18000,intervals:[40]}).toBeLessThan(.5);}
-    finally{await page.keyboard.up(key);}
-  }
-}
 
 test('time simulation leads from orbit to a scanned Moon site and surface exploration',async({page,isMobile})=>{
   test.setTimeout(90000);
@@ -54,11 +39,13 @@ test('time simulation leads from orbit to a scanned Moon site and surface explor
   expect(rect.width).toBe(page.viewportSize()!.width);expect(rect.height).toBe(page.viewportSize()!.height);
   await page.getByRole('button',{name:'Scan',exact:true}).click();
   await expect(page.locator('#surface-status')).toContainText('Move closer');
+  await page.locator('.surface-map summary').click();
   await page.getByRole('combobox',{name:'Waypoint',exact:true}).selectOption('rover');
   await expect(page.locator('#surface-bearing')).toContainText('Lunar Roving Vehicle');
+  await page.locator('.surface-map summary').click();
   await page.getByRole('button',{name:'Jump',exact:true}).click();
   await expect.poll(async()=>Number(await stage.getAttribute('data-altitude'))).toBeGreaterThan(.3);
-  await walk(page,0,-11,isMobile);await walk(page,1,-18,isMobile);
+  await walkTo(page,'#surface-stage',-11,-18,isMobile,.6);
   await page.getByRole('button',{name:'Scan',exact:true}).click();
   await expect(page.locator('#surface-find')).toContainText('Lunar Roving Vehicle');
   await expect(page.locator('#surface-status')).toHaveText('1 / 3 landmarks explored');

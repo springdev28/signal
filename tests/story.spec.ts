@@ -1,7 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-type Direction='north'|'south'|'west'|'east';
-const keys:Record<Direction,string>={north:'w',south:'ArrowDown',west:'a',east:'ArrowRight'};
+import { walkTo } from './ground-navigation';
 
 async function location(page:Page){
   const label=await page.locator('#field-position').innerText();
@@ -10,32 +9,8 @@ async function location(page:Page){
   return [Number(match[1])*(match[2]==='W'?-1:1),Number(match[3])*(match[4]==='N'?-1:1)];
 }
 
-async function moveTo(page:Page, x:number, z:number, touch:boolean){
-  for(let axis=0;axis<2;axis++){
-    const target=axis===0?x:z;
-    for(let attempt=0;attempt<4;attempt++){
-      const point=await location(page);
-      const difference=target-point[axis];
-      if(Math.abs(difference)<=1)break;
-      const direction:Direction=axis===0?(difference>0?'east':'west'):(difference>0?'south':'north');
-      const remaining=async()=>difference>0?target-(await location(page))[axis]:(await location(page))[axis]-target;
-      if(touch){
-        const button=page.getByRole('button',{name:'Move '+direction,exact:true});
-        await button.scrollIntoViewIfNeeded();
-        const bounds=(await button.boundingBox())!;
-        const finger={x:bounds.x+bounds.width/2,y:bounds.y+bounds.height/2};
-        const cdp=await page.context().newCDPSession(page);
-        await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[finger]});
-        try{await expect.poll(remaining,{timeout:6000,intervals:[45]}).toBeLessThanOrEqual(1);}
-        finally{await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await cdp.detach();}
-      }else{
-        await page.keyboard.down(keys[direction]);
-        try{await expect.poll(remaining,{timeout:6000,intervals:[45]}).toBeLessThanOrEqual(1);}
-        finally{await page.keyboard.up(keys[direction]);}
-      }
-    }
-    expect(Math.abs(target-(await location(page))[axis])).toBeLessThanOrEqual(1);
-  }
+async function moveTo(page:Page,x:number,z:number,touch:boolean){
+  await walkTo(page,'#mission-stage',x,z,touch);
 }
 
 test('finish the story with movement, recovery, and assembly',async({page,isMobile})=>{
@@ -91,18 +66,18 @@ test('finish the story with movement, recovery, and assembly',async({page,isMobi
   }
   if(isMobile)await activate('Stabilize');
   await expect(page.locator('#progress')).toHaveText('0/3 recovered');
-  await expect(page.getByRole('button',{name:'Inspect part',exact:true})).toBeDisabled();
+  await expect(page.locator('#interact')).toBeHidden();
   for(const [part,x,z] of [['Camera assembly',6,-12],['Solar panel',14,-8],['Wheel assembly',9,-5]] as const){
     await moveTo(page,x,z,isMobile);
     await activate('Inspect '+part);
     await expect(page.getByRole('dialog',{name:part})).toBeVisible();
     await activate('Collect part');
-    if(isMobile){
+    {
       if(part==='Wheel assembly')await expect(page.locator('#scanner-toggle')).toHaveText('Workbench & inventory');
-      await page.locator('#scanner-toggle').tap();
+      await page.locator('#scanner-toggle').click();
     }
     await expect(page.getByRole('row',{name:new RegExp(part)})).toContainText('Collected');
-    if(isMobile&&part!=='Wheel assembly')await activate('Close details');
+    if(part!=='Wheel assembly')await activate('Close details');
   }
   await expect(page.getByRole('heading',{name:'Workbench'})).toBeVisible();
   await activate('Solaris');
@@ -120,7 +95,7 @@ test('finish the story with movement, recovery, and assembly',async({page,isMobi
   await expect(page.locator('#progress')).toHaveText('1/3 fitted');
   await page.reload();
   await expect(page.locator('#progress')).toHaveText('1/3 fitted');
-  if(isMobile)await activate('Workbench & inventory');
+  await activate('Workbench & inventory');
   await selectPart.selectOption('solar');
   await selectMount.selectOption('deck');
   await activate('Fit Part');
@@ -140,13 +115,14 @@ test('finish the story with movement, recovery, and assembly',async({page,isMobi
   await page.reload();
   await expect(page.getByRole('heading',{name:'Opportunity',exact:true})).toHaveCount(1);
   await page.getByRole('link',{name:'Replay Story'}).click();
-  await expect(page.getByRole('heading',{name:'We have a fragment.'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'A trace in the dust.'})).toBeVisible();
   expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('omnecarta-story-v1')!).phase)).toBe('briefing');
+  await page.getByRole('button',{name:'Menu',exact:true}).click();
   await page.getByRole('navigation').getByRole('link',{name:'My Collection'}).click();
   await expect(page.getByRole('heading',{name:'Opportunity',exact:true})).toHaveCount(1);
 });
 
-test('manual untimed scanner input restores control',async({page})=>{
+test('manual untimed scanner input restores control',async({page,isMobile})=>{
   await page.addInitScript(()=>{
     if(sessionStorage.getItem('scanner-fixture'))return;
     sessionStorage.setItem('scanner-fixture','1');
@@ -160,7 +136,10 @@ test('manual untimed scanner input restores control',async({page})=>{
   await expect(page.getByText('Select Stabilize when you’re ready.')).toBeVisible();
   await page.getByRole('button',{name:'Stabilize',exact:true}).click();
   await expect(page.locator('#progress')).toHaveText('0/3 recovered');
-  await expect(page.getByRole('button',{name:'Move north'})).toBeVisible();
+  const before=await page.locator('#mission-stage').getAttribute('data-position');
+  if(isMobile){await expect(page.getByRole('button',{name:'Move forward'})).toBeVisible();await moveTo(page,10,-12,true);}
+  else{await page.keyboard.down('w');await page.waitForTimeout(450);await page.keyboard.up('w');}
+  await expect(page.locator('#mission-stage')).not.toHaveAttribute('data-position',before!);
 });
 
 test('Solaris pauses the timed cutscene and preserves the conversation on another view',async({page})=>{

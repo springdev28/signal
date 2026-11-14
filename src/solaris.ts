@@ -92,12 +92,14 @@ export function mountSolaris(context: SolarisContext) {
   trigger.before(original);
   const topDialogs: HTMLDialogElement[] = [];
   for (const dialog of document.querySelectorAll<HTMLDialogElement>('dialog:has([data-chat-slot])')) {
-    const show = dialog.showModal.bind(dialog);
-    dialog.showModal = () => {
-      dialog.querySelector('[data-chat-slot]')!.append(trigger);
-      topDialogs.push(dialog);
-      show();
-    };
+    for(const method of ['showModal','show'] as const){
+      const show=dialog[method].bind(dialog);
+      dialog[method]=()=>{
+        dialog.querySelector('[data-chat-slot]')!.append(trigger);
+        if(!topDialogs.includes(dialog))topDialogs.push(dialog);
+        show();
+      };
+    }
     dialog.addEventListener('close', () => {
       const index = topDialogs.indexOf(dialog);
       if (index !== -1) topDialogs.splice(index, 1);

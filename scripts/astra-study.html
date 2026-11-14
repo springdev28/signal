@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Astra · interactive model</title>
+<style>
+html,body{margin:0;background:#151c20;color:#e4e7e3;font:14px system-ui;height:100%;overflow:hidden}canvas{display:block;touch-action:none;outline-offset:-4px}header{position:absolute;top:28px;left:32px;z-index:2;pointer-events:none}h1{font-size:26px;font-weight:500;letter-spacing:.08em;margin:0 0 8px}header p{color:#a8b8b9;font-size:13px;margin:7px 0}.controls{position:absolute;bottom:22px;inset-inline:16px;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;pointer-events:none}.controls fieldset{display:flex;gap:3px;border:1px solid #45606b66;background:#142026e8;border-radius:9px;padding:4px;pointer-events:auto}.controls legend{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}button{background:transparent;border:1px solid transparent;border-radius:5px;color:#aebdbb;font:inherit;padding:10px 13px;min-height:44px;cursor:pointer}button[aria-pressed="true"]{color:#d8efeb;border-color:#638d8b;background:#32494c}button:hover{color:white;background:#314347}button:focus-visible{outline:2px solid #88d7df;outline-offset:2px}.hint{position:absolute;right:28px;top:32px;color:#93aaae;font-size:12px;pointer-events:none}@media(max-width:700px){header{left:22px;right:22px;top:20px}header p{max-width:240px;font-size:12px}.hint{top:105px;left:22px;right:auto}.controls{bottom:14px;gap:4px}button{padding:8px 11px;font-size:12px}}
+</style>
+<header><h1>ASTRA</h1><p>Weathered field robot · live model</p></header>
+<div class="hint">Drag to rotate · scroll or pinch to zoom</div>
+<div class="controls">
+<fieldset><legend>View</legend><button data-angle="0" aria-pressed="false">Front</button><button data-angle="0.65" aria-pressed="true">Three-quarter</button><button data-angle="3.14159" aria-pressed="false">Back</button></fieldset>
+<fieldset><legend>Animation</legend><button data-pose="idle" aria-pressed="true">Idle</button><button data-pose="walk" aria-pressed="false">Walk</button><button data-pose="scan" aria-pressed="false">Scan</button><button data-pose="pickup" aria-pressed="false">Recover</button></fieldset>
+</div>
+<script type="module">
+import * as THREE from '/node_modules/three/build/three.module.js';
+import {OrbitControls} from '/node_modules/three/examples/jsm/controls/OrbitControls.js';
+import {createAstra} from '/src/astra.ts';
+import {preparePaint} from '/src/paint.ts';
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.22;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.domElement.tabIndex=0;renderer.domElement.setAttribute('aria-label','Interactive Astra model. Drag to rotate, scroll or pinch to zoom.');document.body.append(renderer.domElement);
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x151c20);scene.fog=new THREE.Fog(0x151c20,15,35);
+scene.add(new THREE.HemisphereLight(0xc9d9dc,0x42403a,1.5));
+const key=new THREE.DirectionalLight(0xffebcd,3.1);key.position.set(-3,6,5);key.castShadow=true;key.shadow.mapSize.set(2048,2048);Object.assign(key.shadow.camera,{left:-3,right:3,top:4,bottom:-3,near:.5,far:18});key.shadow.normalBias=.003;key.shadow.bias=-.00003;key.shadow.radius=2;scene.add(key);
+const fill=new THREE.DirectionalLight(0xb4d4df,1.5);fill.position.set(4,3,4);scene.add(fill);const rim=new THREE.DirectionalLight(0xaedcda,2);rim.position.set(2,5,-4);scene.add(rim);
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(60,60),new THREE.MeshStandardMaterial({color:0x303b3f,roughness:.96}));floor.rotation.x=-Math.PI/2;floor.position.y=-.001;floor.receiveShadow=true;scene.add(floor);
+const astra=createAstra();astra.model.rotation.y=Math.PI;scene.add(astra.model);
+// A small contact shadow makes the exact sole/floor contact readable in the
+// plain studio. It fades out as a foot lifts; directional shadows stay active.
+const contactCanvas=document.createElement('canvas');contactCanvas.width=contactCanvas.height=64;
+const context=contactCanvas.getContext('2d');const gradient=context.createRadialGradient(32,32,6,32,32,32);gradient.addColorStop(0,'rgba(0,0,0,.7)');gradient.addColorStop(1,'rgba(0,0,0,0)');context.fillStyle=gradient;context.fillRect(0,0,64,64);
+const contacts=['Left foot','Right foot'].map(name=>{const mesh=new THREE.Mesh(new THREE.PlaneGeometry(.23,.37),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(contactCanvas),transparent:true,depthWrite:false,opacity:.45}));mesh.rotation.x=-Math.PI/2;scene.add(mesh);return {foot:astra.model.getObjectByName(name),mesh};});
+const contactPoint=new THREE.Vector3();
+function contactShadows(){astra.model.updateMatrixWorld(true);for(const {foot,mesh}of contacts){contactPoint.set(0,-.133,-.07).applyMatrix4(foot.matrixWorld);mesh.position.set(contactPoint.x,.0002,contactPoint.z);mesh.material.opacity=.45*Math.exp(-Math.max(0,contactPoint.y)*18);}}
+const camera=new THREE.PerspectiveCamera(35,innerWidth/innerHeight,.1,60);
+const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,1.55,0);controls.enableDamping=true;controls.dampingFactor=.1;controls.minDistance=2;controls.maxDistance=12;controls.minPolarAngle=.18;controls.maxPolarAngle=Math.PI*.51;controls.enablePan=true;
+const view=(angle)=>{const distance=innerWidth<700?8.7:6.9;camera.position.set(Math.sin(angle)*distance,2.5,Math.cos(angle)*distance);controls.target.set(0,1.55,0);controls.update();};view(.65);
+let mode='idle',manual=false,start=performance.now();
+for(const button of document.querySelectorAll('[data-angle]'))button.addEventListener('click',()=>{view(Number(button.dataset.angle));for(const b of document.querySelectorAll('[data-angle]'))b.setAttribute('aria-pressed',String(b===button));});
+controls.addEventListener('start',()=>{for(const b of document.querySelectorAll('[data-angle]'))b.setAttribute('aria-pressed','false');});
+for(const button of document.querySelectorAll('[data-pose]'))button.addEventListener('click',()=>{mode=button.dataset.pose;manual=false;for(const b of document.querySelectorAll('[data-pose]'))b.setAttribute('aria-pressed',String(b===button));});
+renderer.domElement.addEventListener('keydown',event=>{if(!['ArrowLeft','ArrowRight'].includes(event.key))return;event.preventDefault();const offset=camera.position.clone().sub(controls.target);offset.applyAxisAngle(new THREE.Vector3(0,1,0),event.key==='ArrowLeft'?-.12:.12);camera.position.copy(controls.target).add(offset);controls.update();});
+window.addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();});
+await preparePaint();
+function animate(now){if(!manual){const t=(now-start)/1000;const action=mode==='walk'?'idle':mode;const amount=(mode==='pickup'||mode==='scan')?(.5-.5*Math.cos(t*1.7)):0;astra.pose(t,mode==='walk',action,amount);}contactShadows();controls.update();renderer.render(scene,camera);document.body.dataset.heading=controls.getAzimuthalAngle().toFixed(4);document.body.dataset.frame=String(renderer.info.render.frame);requestAnimationFrame(animate);}
+astra.pose(0,false,'idle',0);requestAnimationFrame(animate);document.body.dataset.ready='true';
+window.setAstraPose=(seconds,walking=false,action='idle',amount=0)=>{manual=true;astra.pose(seconds,walking,action,amount);contactShadows();renderer.render(scene,camera);return [new THREE.Box3().setFromObject(astra.model).min.y];};
+window.astraStudy={astra,scene,camera,controls,renderer,view};
+</script></html>

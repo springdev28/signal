@@ -7,28 +7,33 @@ import type { SolarisContext } from './solaris';
 
 export function flightMarkup(){
   return `<section id="flight" class="flight-interface" aria-label="Odyssey cockpit">
-    <div id="flight-stage" class="simulation-canvas"><img class="flight-fallback-art" src="${asset('ship-fallback.svg')}" alt="Illustration of the expedition ship with paired engines, swept wings, glass cockpit and landing struts"><p class="view-state" role="status">Powering the cockpit…</p></div>
-    <header class="flight-heading"><p class="eyebrow">Odyssey · Fictional recovery mission</p><h1>The last downlink</h1><p id="flight-objective">Read the recovered data. Locate three part beacons.</p></header>
-    <section class="flight-brief hud-panel" id="flight-brief"><p class="eyebrow">Solaris</p><h2>We have a fragment.</h2><p>The rover’s last downlink survived. Its parts did not stay together.</p><p>Read each recovered record. Use its landmarks to choose a search region, then compare radar scans from different positions. I’ll turn those bearings into a landing plan.</p><button class="button primary" id="start-survey">Take the controls ${icon('arrow',17)}</button></section>
-    <details class="flight-records hud-panel" id="flight-records" open><summary>Recovered data <span id="lock-count">0 / 3 locked</span></summary>
-      <p class="record-disclaimer">Damaged spacecraft logs · fictional mission evidence</p>
-      <div class="record-tabs" role="group" aria-label="Investigate a recovered record">${missionSite.parts.map((p,i)=>`<button class="record-tab" data-contact="${p.id}" aria-pressed="${i===0}">${p.id==='camera'?'Optics':p.id==='solar'?'Power':'Drive'}</button>`).join('')}</div>
+    <div id="flight-stage" class="simulation-canvas"><img class="flight-fallback-art" src="${asset('ship-fallback.svg')}" alt="Expedition ship with paired engines, swept wings and landing struts"><p class="view-state" role="status">Powering the cockpit…</p></div>
+    <header class="flight-heading"><h1 class="visually-hidden">The last downlink</h1><p id="flight-objective">Locate three parts.</p></header>
+    <div class="windshield-reticle" aria-hidden="true"><span></span></div>
+    <section class="flight-brief hud-panel" id="flight-brief"><p class="eyebrow">Solaris / Incoming</p><h2>A trace in the dust.</h2><p>Opportunity’s instruments left a record. Our recovery flight begins with three damaged fragments.</p><p>Read a clue, choose its search region, then scan from different positions. When the bearings agree, lock the contact and bring us down.</p><button class="button primary" id="start-survey">Take the controls ${icon('arrow',17)}</button><small>Fictional expedition · NASA artifact and mission record</small></section>
+    <details class="flight-records hud-panel" id="flight-records"><summary>Recovered data <span id="lock-count">0 / 3</span></summary>
       <p class="eyebrow" id="packet-name"></p><p id="packet-clue"></p>
-      <label class="clue-hypothesis">Interpret the landmark clue<select id="search-region"><option value="">Choose a search region</option><option value="camera">North of the tracks</option><option value="solar">Eastern shelf</option><option value="wheel">Above the track bend</option></select></label>
-      <div class="contact-reading"><strong id="contact-name"></strong><output id="contact-confidence"></output><p id="contact-evidence"></p></div>
-      <button class="button primary" id="lock-contact" disabled>Lock camera location</button>
-      <button class="button primary" id="begin-approach" hidden>Begin landing approach</button>
+      <label class="clue-hypothesis">Where does this clue point?<select id="search-region"><option value="">Choose a search region</option><option value="camera">North of the tracks</option><option value="solar">Eastern shelf</option><option value="wheel">Above the track bend</option></select></label>
+      <p class="record-disclaimer">These damaged downlinks are fictional clues. Match landmarks, then confirm the region with separated radar bearings.</p>
+      <details class="nasa-evidence"><summary>NASA mission evidence</summary><img src="${asset('eagle.jpg')}" alt="Opportunity panorama showing exposed layered rock at Eagle Crater"><p>Opportunity’s Pancam photographed layered outcrop at Eagle Crater. Its solar array supplied power; its six wheels and articulated suspension crossed the terrain.</p><p class="image-credit">NASA / JPL-Caltech / Cornell</p><a href="https://science.nasa.gov/mission/mars-exploration-rovers-spirit-and-opportunity/" target="_blank" rel="noopener">Spirit & Opportunity mission record ↗</a></details>
+      <button class="button" id="close-flight-records">Return to windshield</button>
     </details>
     <div class="flight-instruments" id="flight-instruments">
-      <section class="flight-radar hud-panel"><h2>Survey radar <span id="radar-range">80 m</span></h2><canvas id="flight-radar" width="420" height="420" role="img" aria-label="Radar: read a recovered record to select a search region."></canvas><p id="radar-caption">Ring: search uncertainty · S: spires · T: tracks</p></section>
-      <section class="flight-pilot hud-panel"><div class="flight-readings"><span>Heading <output id="flight-heading-value">000°</output></span><span>Altitude <output id="flight-altitude">42 m</output></span><span>Speed <output id="flight-speed">0 m/s</output></span></div>
-        <label for="flight-throttle">Throttle <output id="throttle-value">0%</output></label><input id="flight-throttle" type="range" min="0" max="100" step="5" value="0">
-        <div class="flight-actions"><div class="flight-steering" aria-label="Flight steering"><button data-steer="left" aria-label="Bank left">${icon('back',18)}</button><button data-steer="up" aria-label="Pitch up">${icon('up',18)}</button><button data-steer="down" aria-label="Pitch down">${icon('lower',18)}</button><button data-steer="right" aria-label="Bank right">${icon('arrow',18)}</button></div><button class="button primary" id="flight-scan">${icon('scan',18)} Scan</button><button class="button" id="flight-brake">Brake</button></div>
-        <p>WASD / arrows steer · Q / E throttle · Space scans · B brakes</p><button id="flight-camera" class="flight-camera">Exterior view</button></section>
+      <section class="console-navigation"><div class="flight-readings"><span>HDG <output id="flight-heading-value">000°</output></span><span>ALT <output id="flight-altitude">42 m</output></span><span>VEL <output id="flight-speed">0 m/s</output></span></div>
+        <div class="record-tabs" role="group" aria-label="Investigate a recovered record">${missionSite.parts.map((p,i)=>`<button class="record-tab" data-contact="${p.id}" aria-pressed="${i===0}">${p.id==='camera'?'Optics':p.id==='solar'?'Power':'Drive'}</button>`).join('')}</div>
+        <button id="open-flight-records" class="console-link">Read selected clue ${icon('arrow',14)}</button>
+        <details class="pilot-help"><summary>Flight controls</summary><p>A / D or ← / → turn. W / S or ↑ / ↓ change altitude. Q / E decrease / increase throttle. Space scans; B brakes. Drag the windshield to look. Touch: hold the steering arrows.</p><button id="flight-camera" class="flight-camera">Exterior view</button></details>
+      </section>
+      <section class="flight-radar"><canvas id="flight-radar" width="420" height="420" role="img" aria-label="Radar: read a recovered record to select a search region."></canvas><span id="radar-range">80 m</span><p id="radar-caption" class="visually-hidden">Heading-up radar. Rings every 20 metres. S marks spires; T marks tracks.</p></section>
+      <section class="flight-pilot"><div class="contact-reading"><strong id="contact-name"></strong><output id="contact-confidence"></output><p id="contact-evidence"></p></div>
+        <div class="throttle-control"><label for="flight-throttle">THR <output id="throttle-value">0%</output></label><input id="flight-throttle" type="range" min="0" max="100" step="5" value="0"><button class="button" id="flight-brake">Brake</button></div>
+        <div class="flight-actions"><button class="button primary" id="flight-scan">${icon('scan',18)} Scan</button><button class="button primary" id="lock-contact" disabled>Lock camera location</button><button class="button primary" id="begin-approach" hidden>Begin landing approach</button></div>
+      </section>
+      <div class="flight-steering" aria-label="Flight steering"><button data-steer="left" aria-label="Bank left">${icon('back',18)}</button><button data-steer="up" aria-label="Pitch up">${icon('up',18)}</button><button data-steer="down" aria-label="Pitch down">${icon('lower',18)}</button><button data-steer="right" aria-label="Bank right">${icon('arrow',18)}</button></div>
     </div>
-    <section id="approach-panel" class="flight-approach hud-panel" hidden><h2>Landing approach</h2><p id="approach-reading"></p><p>Your three locks are carried on the radar. Land in the clear area west of the wreck.</p><div class="mission-actions"><button class="button" id="guide-landing">Guide to landing zone</button><button class="button primary" id="land-ship" disabled>Land</button></div></section>
+    <section id="approach-panel" class="flight-approach hud-panel" hidden><h2>Clear landing shelf</h2><p id="approach-reading"></p><div class="mission-actions"><button class="button" id="guide-landing">Guide to landing zone</button><button class="button primary" id="land-ship" disabled>Land</button></div></section>
     <section id="landing-input" class="flight-landing hud-panel" hidden><p class="eyebrow">Solaris</p><h2 id="landing-title">Crosswind at the rim.</h2><p id="landing-status" role="status"></p><div class="mission-actions"><button class="button primary" id="stabilize-descent">Stabilize descent</button><button class="button" id="retry-descent" hidden>Retry approach</button><button class="button" id="untimed-descent">Use untimed input</button><button class="button primary" id="step-outside" hidden>Step outside as Astra</button></div></section>
-    <div class="flight-dialogue hud-panel" role="status"><span>Solaris</span><p id="flight-line">The last downlink is on your right. Start with the optics record.</p></div>
+    <div class="flight-dialogue" role="status" hidden><span>Solaris</span><p id="flight-line"></p></div>
   </section>`;
 }
 
@@ -37,6 +42,7 @@ export function mountFlight(solaris:SolarisContext,complete:()=>void){
   const state=loadFlight(),events=new AbortController(),keys=new Set<string>(),pointers=new Map<number,string>();
   let selected:PartId='camera',throttle=0,time=0,last=0,animation=0,scanTime=-100,lastUi=0,lastSave=0;
   const hypotheses:Record<PartId,string>={camera:'',solar:'',wheel:''};
+  let velocity=0,turnRate=0;
   let paused=false,guide=false,landingT=0,descentT=0,landingStart=20,confirmed=false,missed=false,untimed=matchMedia('(prefers-reduced-motion: reduce)').matches,hatch=0,exit=0,touchdown=0,finished=false;
   const radar=$<HTMLCanvasElement>('flight-radar'),ctx=radar.getContext('2d')!;
   let scene:ReturnType<typeof createFlightScene>|undefined;
@@ -44,7 +50,16 @@ export function mountFlight(solaris:SolarisContext,complete:()=>void){
   catch{$('flight-stage').classList.add('flight-fallback');$('flight-stage').querySelector('.view-state')!.textContent='3D unavailable. The radar and flight controls remain active.';}
   $('flight-camera').addEventListener('click',()=>{if(scene)$('flight-camera').textContent=scene.toggleCamera()?'Cockpit view':'Exterior view';});
   if(matchMedia('(max-width:620px)').matches)($('flight-records') as HTMLDetailsElement).open=false;
-  function say(line:string){$('flight-line').textContent=line;state.history.push(line);state.history=state.history.slice(-24);saveFlight(state);}
+  let captionTimer=0;
+  function say(line:string){
+    $('flight-line').textContent=line;$('flight-line').parentElement!.hidden=false;
+    clearTimeout(captionTimer);captionTimer=window.setTimeout(()=>{$('flight-line').parentElement!.hidden=true;},Math.max(3500,Math.min(8500,line.length*48)));
+    state.history.push(line);state.history=state.history.slice(-24);saveFlight(state);
+  }
+  const records=$<HTMLDetailsElement>('flight-records');
+  $('open-flight-records').addEventListener('click',()=>{records.open=!records.open;if(records.open)$('search-region').focus();});
+  $('close-flight-records').addEventListener('click',()=>{records.open=false;$('open-flight-records').focus();});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&records.open){records.open=false;$('open-flight-records').focus();}},{signal:events.signal});
   function changeThrottle(value:number){throttle=Math.max(0,Math.min(1,value));$('flight-throttle').setAttribute('aria-valuetext',Math.round(throttle*100)+' percent');($('flight-throttle') as HTMLInputElement).value=String(Math.round(throttle*100));}
   function scan(){
     if(state.phase!=='survey'||time-scanTime<.75)return;
@@ -59,13 +74,13 @@ export function mountFlight(solaris:SolarisContext,complete:()=>void){
     else say(`${partById(selected)!.name}: uncertainty ±${state.contacts[selected].uncertainty.toFixed(1)} m. Change position and view it from another angle.`);
     renderUi();
   }
-  function select(id:PartId){selected=id;renderUi();say(recoveredLogs[id].clue);}
-  $('search-region').addEventListener('change',()=>{hypotheses[selected]=$<HTMLSelectElement>('search-region').value;say('Search region selected. Fly to compare its return with the recovered record.');});
+  function select(id:PartId){selected=id;renderUi();records.open=!hypotheses[id];}
+  $('search-region').addEventListener('change',()=>{hypotheses[selected]=$<HTMLSelectElement>('search-region').value;records.open=false;$('flight-stage').querySelector('canvas')?.focus();say('Search region selected. Fly to compare its return with the recovered record.');});
   for(const button of root.querySelectorAll<HTMLButtonElement>('[data-contact]'))button.addEventListener('click',()=>select(button.dataset.contact as PartId));
   $('start-survey').addEventListener('click',()=>{state.phase='survey';say('Optics says north of the tracks. Set your throttle, steer toward that region, and compare three separated scan positions.');renderUi();$('flight-stage').querySelector('canvas')?.focus();});
   $('flight-scan').addEventListener('click',scan);
   $('flight-throttle').addEventListener('input',()=>{guide=false;changeThrottle(Number(($('flight-throttle') as HTMLInputElement).value)/100);});
-  $('flight-brake').addEventListener('click',()=>{guide=false;changeThrottle(0);});
+  $('flight-brake').addEventListener('click',()=>{guide=false;changeThrottle(0);velocity=0;});
   $('lock-contact').addEventListener('click',()=>{
     if(!canLock(state,selected)||state.contacts[selected].locked)return;
     state.contacts[selected].locked=true;
@@ -107,19 +122,19 @@ export function mountFlight(solaris:SolarisContext,complete:()=>void){
     const locked=Object.values(state.contacts).filter(c=>c.locked).length,contact=state.contacts[selected],count=state.samples.filter(p=>p.id===selected).length;
     root.dataset.phase=state.phase;root.dataset.position=state.x.toFixed(2)+','+state.z.toFixed(2);root.dataset.heading=state.heading.toFixed(3);root.dataset.scans=String(state.samples.length);root.dataset.locks=String(locked);
     solaris.subject=`Odyssey · ${state.phase==='briefing'?'Cockpit briefing':state.phase==='survey'?recoveredLogs[selected].packet:state.phase==='approach'?'Landing approach':state.phase==='exit'?'Astra disembarking':'Touchdown'}`;solaris.selection=selected;
-    $('flight-brief').hidden=state.phase!=='briefing';$('flight-instruments').hidden=!['survey','approach'].includes(state.phase);
+    $('flight-brief').hidden=state.phase!=='briefing';$('flight-instruments').hidden=!['briefing','survey','approach'].includes(state.phase);
     $('flight-records').hidden=!['briefing','survey','approach'].includes(state.phase);
     $('lock-count').textContent=locked+' / 3 locked';$('packet-name').textContent=recoveredLogs[selected].packet;$('packet-clue').textContent=recoveredLogs[selected].clue;
-    $('contact-name').textContent=partById(selected)!.name;$('contact-confidence').textContent=contact.locked?'Location locked':count?'Uncertainty ±'+contact.uncertainty.toFixed(1)+' m':'Search region from recovered data';
+    $('contact-name').textContent=partById(selected)!.name;$('contact-confidence').textContent=contact.locked?'Location locked':count?'±'+contact.uncertainty.toFixed(1)+' m':'Read clue → choose region';
     $('contact-evidence').textContent=count?`${count} distinct bearings${contact.locked?' · retained for surface navigation':''}`:'No scan evidence yet.';
     $<HTMLButtonElement>('flight-scan').disabled=time-scanTime<.75||state.phase!=='survey';
     $('flight-scan').setAttribute('aria-label',time-scanTime<.75?'Scanner recharging':'Scan');
     $<HTMLSelectElement>('search-region').value=hypotheses[selected];
-    const lock=$<HTMLButtonElement>('lock-contact');lock.disabled=!canLock(state,selected)||contact.locked;lock.textContent=contact.locked?'Location locked':'Lock '+selected+' location';
+    const lock=$<HTMLButtonElement>('lock-contact');lock.disabled=!canLock(state,selected)||contact.locked;lock.textContent=contact.locked?'Locked ✓':'Lock '+selected+' location';lock.hidden=!canLock(state,selected)&&!contact.locked;$('flight-scan').hidden=canLock(state,selected)||contact.locked||state.phase==='approach';
     for(const button of root.querySelectorAll<HTMLButtonElement>('[data-contact]')){button.setAttribute('aria-pressed',String(button.dataset.contact===selected));button.classList.toggle('contact-locked',state.contacts[button.dataset.contact as PartId].locked);}
     $('begin-approach').hidden=locked!==3||state.phase!=='survey';
-    $('throttle-value').textContent=Math.round(throttle*100)+'%';$('flight-altitude').textContent=state.altitude.toFixed(0)+' m';$('flight-speed').textContent=(throttle*12).toFixed(1)+' m/s';$('flight-heading-value').textContent=String(Math.round((state.heading*180/Math.PI+360)%360)).padStart(3,'0')+'°';
-    $('flight-objective').textContent=state.phase==='survey'?'Use the last downlink to choose a search region. Compare bearings; lock each part.':state.phase==='approach'?'Carry the fixes into a safe landing.':'Read the recovered data. Locate three part beacons.';
+    $('throttle-value').textContent=Math.round(throttle*100)+'%';$('flight-altitude').textContent=state.altitude.toFixed(0)+' m';$('flight-speed').textContent=velocity.toFixed(1)+' m/s';$('flight-heading-value').textContent=String(Math.round((state.heading*180/Math.PI+360)%360)).padStart(3,'0')+'°';
+    $('flight-objective').textContent=state.phase==='survey'?`Locate three parts · ${locked}/3 locked`:state.phase==='approach'?'Align with the clear landing shelf.':'Locate three parts.';
     $('approach-panel').hidden=state.phase!=='approach';const range=Math.hypot(state.x-landingSite.x,state.z-landingSite.z);
     $('approach-reading').textContent=`Clear zone · ${range.toFixed(1)} m away · ${state.altitude.toFixed(0)} m altitude`;
     $<HTMLButtonElement>('land-ship').disabled=range>8||throttle>.3||state.altitude>32;
@@ -132,8 +147,11 @@ export function mountFlight(solaris:SolarisContext,complete:()=>void){
   }
   function drawRadar(){
     const size=420,c=size/2,scale=2.35;ctx.clearRect(0,0,size,size);ctx.fillStyle='#081c26';ctx.fillRect(0,0,size,size);
+    const glow=ctx.createRadialGradient(c,c,1,c,c,200);glow.addColorStop(0,'#12333b');glow.addColorStop(1,'#030c12');ctx.fillStyle=glow;ctx.fillRect(0,0,size,size);
     const point=(x:number,z:number)=>{const dx=x-state.x,dz=z-state.z,a=-state.heading;return [c+(dx*Math.cos(a)-dz*Math.sin(a))*scale,c+(dx*Math.sin(a)+dz*Math.cos(a))*scale];};
-    ctx.strokeStyle='#315561';ctx.lineWidth=1;
+    ctx.strokeStyle='#28414b';ctx.lineWidth=1;
+    for(let i=0;i<72;i++){const a=i*Math.PI/36;const outer=198,inner=i%6===0?183:192;ctx.beginPath();ctx.moveTo(c+Math.sin(a)*inner,c-Math.cos(a)*inner);ctx.lineTo(c+Math.sin(a)*outer,c-Math.cos(a)*outer);ctx.stroke();}
+    ctx.save();ctx.translate(c,c);ctx.rotate(time*.65);const sweep=ctx.createLinearGradient(0,0,190,0);sweep.addColorStop(0,'#63d7e800');sweep.addColorStop(1,'#63d7e835');ctx.fillStyle=sweep;ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,188,-.42,0);ctx.closePath();ctx.fill();ctx.restore();
     for(const r of [47,94,141,188]){ctx.beginPath();ctx.arc(c,c,r,0,Math.PI*2);ctx.stroke();}
     ctx.beginPath();ctx.moveTo(20,c);ctx.lineTo(400,c);ctx.moveTo(c,20);ctx.lineTo(c,400);ctx.stroke();
     ctx.save();ctx.beginPath();ctx.arc(c,c,190,0,Math.PI*2);ctx.clip();
@@ -150,7 +168,7 @@ export function mountFlight(solaris:SolarisContext,complete:()=>void){
     if(state.phase==='approach'){const [x,y]=point(landingSite.x,landingSite.z);ctx.strokeStyle='#c0f5f5';ctx.strokeRect(x-10,y-10,20,20);ctx.fillStyle='#c0f5f5';ctx.fillText('LAND',x+14,y+5);}
     if(time-scanTime<1.1){ctx.strokeStyle='#81dfed';ctx.beginPath();ctx.arc(c,c,(time-scanTime)*180,0,Math.PI*2);ctx.stroke();}
     ctx.restore();ctx.fillStyle='#d4f4f6';ctx.beginPath();ctx.moveTo(c,c-9);ctx.lineTo(c-7,c+7);ctx.lineTo(c+7,c+7);ctx.closePath();ctx.fill();
-    ctx.font='13px sans-serif';ctx.fillStyle='#a4c3cf';ctx.fillText('SHIP ↑',c-23,403);
+    ctx.font='13px sans-serif';ctx.fillStyle='#a4c3cf';ctx.fillText('N',...point(state.x,state.z-76) as [number,number]);
     radar.setAttribute('aria-label',`${partById(selected)!.name}. ${$('contact-confidence').textContent}. Ship at ${state.x.toFixed(0)} east, ${state.z.toFixed(0)} south. ${state.samples.filter(p=>p.id===selected).length} distinct scans.`);
   }
   function draw(now:number){
@@ -163,8 +181,8 @@ export function mountFlight(solaris:SolarisContext,complete:()=>void){
         changeThrottle(Math.abs(error)>.6?0:range>12?.6:range>3?.22:0);state.altitude=Math.max(22,state.altitude-dt*6);
         if(range<3&&state.altitude<=23){guide=false;changeThrottle(0);say('On the clear zone. Throttle is idle. You can land.');}
       }
-      state.heading+=steer*dt*.82;state.altitude=Math.max(18,Math.min(80,state.altitude+pitch*dt*8));
-      state.x=Math.max(-65,Math.min(65,state.x+Math.sin(state.heading)*throttle*12*dt));state.z=Math.max(-65,Math.min(65,state.z-Math.cos(state.heading)*throttle*12*dt));
+      turnRate+=(steer*.82-turnRate)*(1-Math.exp(-dt*7));velocity+=(throttle*12-velocity)*(1-Math.exp(-dt*3));state.heading+=turnRate*dt;state.altitude=Math.max(18,Math.min(80,state.altitude+pitch*dt*8));
+      state.x=Math.max(-65,Math.min(65,state.x+Math.sin(state.heading)*velocity*dt));state.z=Math.max(-65,Math.min(65,state.z-Math.cos(state.heading)*velocity*dt));
     }
     if(state.phase==='landing'){
       if(!missed)landingT+=dt;
@@ -174,15 +192,15 @@ export function mountFlight(solaris:SolarisContext,complete:()=>void){
     if(state.phase==='landed'){touchdown+=dt;hatch=Math.min(1,Math.max(0,(touchdown-.65)/1.2));}
     if(state.phase==='exit'){exit=Math.min(1,exit+dt/2.6);touchdown+=dt;}
     if(time-lastUi>.08||!lastUi){renderUi();drawRadar();lastUi=time;}
-    scene?.draw({state,throttle,steer,pitch,time,scan:time-scanTime,hatch,exit,touchdown});
+    scene?.draw({state,throttle,steer:turnRate/.82,pitch,time,scan:time-scanTime,hatch,exit,touchdown});
     if(time-lastSave>1){saveFlight(state);lastSave=time;}
     if(exit===1&&!finished){
       finished=true;state.phase='surface';saveFlight(state);
-      const save=startStory(),point=scene?.exitPosition()??landingSite;save.phase='recover';save.x=Math.max(-18,Math.min(18,point.x));save.z=Math.max(-18,Math.min(18,point.z));save.observed=[0,1];save.history=[...state.history,'Three fixes from the last downlink. Follow a locked waypoint and recover its part.'];saveStory(save);
-      events.abort();scene?.dispose();root.remove();complete();return;
+      const save=startStory(),point=scene?.exitPosition()??landingSite;save.phase='recover';save.x=Math.max(-missionSite.extent,Math.min(missionSite.extent,point.x));save.z=Math.max(-missionSite.extent,Math.min(missionSite.extent,point.z));save.observed=[0,1];save.history=[...state.history,'Three fixes from the last downlink. Follow a locked waypoint and recover its part.'];saveStory(save);
+      clearTimeout(captionTimer);events.abort();scene?.dispose();root.remove();complete();return;
     }
     animation=requestAnimationFrame(draw);
   }
   renderUi();drawRadar();draw(performance.now());
-  window.addEventListener('pagehide',()=>{cancelAnimationFrame(animation);saveFlight(state);events.abort();scene?.dispose();},{once:true});
+  window.addEventListener('pagehide',()=>{clearTimeout(captionTimer);cancelAnimationFrame(animation);saveFlight(state);events.abort();scene?.dispose();},{once:true});
 }

@@ -19,11 +19,10 @@ function brushTexture() {
 export function preparePaint() { brushTexture(); return textureReady!; }
 
 /** Brush grain is evaluated in model space so it stays attached while parts move. */
-export function paintMaterial(material: THREE.MeshStandardMaterial, scale = 1) {
+export function paintMaterial(material: THREE.MeshStandardMaterial, scale = 1, finishStrokes = true) {
   material.userData.painted = true;
   material.userData.paintScale = scale;
-  material.roughness = Math.max(.68, material.roughness);
-  material.metalness = Math.min(.35, material.metalness);
+  // Keep each material's metal, ceramic, glass, and cloth response intact.
   material.onBeforeCompile = shader => {
     shader.uniforms.paintGrain = { value: brushTexture() };
     shader.uniforms.paintScale = { value: scale };
@@ -38,16 +37,16 @@ export function paintMaterial(material: THREE.MeshStandardMaterial, scale = 1) {
         texture2D(paintGrain, vPaintPosition.yz * paintScale).r,
         texture2D(paintGrain, vPaintPosition.xz * paintScale).r,
         texture2D(paintGrain, vPaintPosition.xy * paintScale).r), paintWeights);
-      diffuseColor.rgb *= mix(.84, 1.18, floor(clamp(stroke,0.,.99)*5.)/4.);
+      diffuseColor.rgb *= mix(.88, 1.12, stroke);
     `);
-    shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `
+    if(finishStrokes)shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `
       vec2 marksUV=surfaceStrokeUV(vPaintPosition)*max(paintScale,.75)*2.6;
       float facing=abs(dot(normalize(normal),normalize(vViewPosition)));
       outgoingLight=paintedFinish(outgoingLight,marksUV,vec3(.012,.029,.055),vec3(.12,.48,.52),facing);
       #include <opaque_fragment>
     `);
   };
-  material.customProgramCacheKey = () => 'graphic-painted-v2-' + scale;
+  material.customProgramCacheKey = () => 'natural-painted-v4-' + scale + '-' + finishStrokes;
   return material;
 }
 
@@ -64,6 +63,27 @@ export function paintModel(root: THREE.Object3D, scale = 1) {
     object.castShadow = true;
     object.receiveShadow = true;
   });
+}
+
+let strata:THREE.Texture|undefined;
+/** Original painted pigment, projected continuously across sculpted rock. */
+export function rockMaterial(material:THREE.MeshStandardMaterial,moon=false,scale=.09){
+  if(!strata){strata=new THREE.TextureLoader().load(asset('painted-strata.webp'));strata.colorSpace=THREE.SRGBColorSpace;strata.wrapS=strata.wrapT=THREE.RepeatWrapping;strata.anisotropy=8;}
+  paintMaterial(material,scale);
+  const finish=material.onBeforeCompile;
+  material.onBeforeCompile=(shader,renderer)=>{
+    finish(shader,renderer);shader.uniforms.rockPigment={value:strata};shader.uniforms.rockMoon={value:moon?1:0};
+    shader.fragmentShader='uniform sampler2D rockPigment;uniform float rockMoon;\n'+shader.fragmentShader;
+    shader.fragmentShader=shader.fragmentShader.replace('diffuseColor.rgb *= mix(.88, 1.12, stroke);',`
+      vec3 rockColor=texture2D(rockPigment,vPaintPosition.yz*paintScale).rgb*paintWeights.x
+        +texture2D(rockPigment,vPaintPosition.xz*paintScale).rgb*paintWeights.y
+        +texture2D(rockPigment,vPaintPosition.xy*paintScale).rgb*paintWeights.z;
+      rockColor=mix(rockColor,vec3(dot(rockColor,vec3(.2126,.7152,.0722))),rockMoon);
+      diffuseColor.rgb *= mix(vec3(.72),rockColor*3.8,.8);
+    `);
+  };
+  material.customProgramCacheKey=()=>`strata-v1-${moon}-${scale}`;
+  return material;
 }
 
 export function stars(scene: THREE.Object3D, radius = 180, count = 1250) {

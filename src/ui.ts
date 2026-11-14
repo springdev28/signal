@@ -40,14 +40,14 @@ export const viewButtons = (vertical = false) => `<div class="view-actions" aria
   <button type="button" data-view="reset" aria-label="Reset view" title="Reset view">${icon('reset')}</button>
 </div>`;
 
-export function mountDrawer(panel: HTMLElement, drawer: HTMLDialogElement, button: HTMLButtonElement) {
+export function mountDrawer(panel: HTMLElement, drawer: HTMLDialogElement, button: HTMLButtonElement, modal = true) {
   const slot = drawer.querySelector<HTMLElement>('[data-drawer-body]')!;
   const anchor = document.createComment('details panel');
   panel.before(anchor);
   function open() {
     if (getComputedStyle(button).display === 'none' || drawer.open) return;
     slot.append(panel);
-    drawer.showModal();
+    if(modal)drawer.showModal();else drawer.show();
     button.setAttribute('aria-expanded', 'true');
   }
   button.addEventListener('click', open);
@@ -67,3 +67,20 @@ export const drawerMarkup = (label: string) => `<dialog class="drawer" id="detai
   <div class="dialog-bar"><strong>${label}</strong><span data-chat-slot></span><button type="button" data-close-drawer class="close" aria-label="Close details">×</button></div>
   <div data-drawer-body></div>
 </dialog>`;
+
+/** A short same-origin handoff also works when cross-document view transitions
+ * are unavailable. Modified clicks and external destinations stay native. */
+export function mountNavigationMotion(){
+  let leaving=false;
+  window.addEventListener('pageshow',()=>{leaving=false;document.body.classList.remove('scene-leaving');});
+  document.addEventListener('click',event=>{
+    if(event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+    const anchor=(event.target as Element).closest<HTMLAnchorElement>('a[href]');
+    if(!anchor||anchor.target||anchor.hasAttribute('download'))return;
+    const next=new URL(anchor.href);
+    if(next.origin!==location.origin||(next.pathname===location.pathname&&next.search===location.search&&next.hash))return;
+    event.preventDefault();if(leaving)return;
+    leaving=true;document.body.classList.add('scene-leaving');
+    setTimeout(()=>location.assign(next.href),160);
+  });
+}

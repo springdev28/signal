@@ -17,8 +17,8 @@ export function renderAstraPortrait(host: HTMLElement) {
   model.rotation.y = .23;
   scene.add(model);
   const camera = new THREE.PerspectiveCamera(28, 560 / 740, .05, 50);
-  camera.position.set(3.55, 2.13, -5.5);
-  camera.lookAt(.27,1.38,0);
+  camera.position.set(4.1, 2.4, -6.7);
+  camera.lookAt(.15,1.7,0);
   renderer.render(scene,camera);
   host.append(renderer.domElement);
   return renderer;

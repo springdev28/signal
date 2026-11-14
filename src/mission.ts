@@ -3,6 +3,7 @@ import { rover } from './catalog';
 export type Point = readonly [x: number, z: number];
 export const missionSite = {
   name: 'Perseverance Valley',
+  extent: 35,
   start: [-13, 13] as Point,
   wreck: [10, -10] as Point,
   landmarks: [
@@ -67,8 +68,8 @@ export function loadStory():StorySave {
   const saved = startStory();
   if (!value || value.version !== 1 || !value.phase || !phases.includes(value.phase)) return saved;
   saved.phase = value.phase;
-  saved.x = Number.isFinite(value.x) ? Math.max(-18, Math.min(18, value.x!)) : saved.x;
-  saved.z = Number.isFinite(value.z) ? Math.max(-18, Math.min(18, value.z!)) : saved.z;
+  saved.x = Number.isFinite(value.x) ? Math.max(-missionSite.extent, Math.min(missionSite.extent, value.x!)) : saved.x;
+  saved.z = Number.isFinite(value.z) ? Math.max(-missionSite.extent, Math.min(missionSite.extent, value.z!)) : saved.z;
   saved.observed = Array.isArray(value.observed) ? [...new Set(value.observed.filter(i => i === 0 || i === 1))] : [];
   if (['recover','assemble','complete'].includes(saved.phase)) saved.collected = ids(value.collected);
   if (['assemble','complete'].includes(saved.phase)) {

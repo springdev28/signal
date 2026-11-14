@@ -1,0 +1,68 @@
+/* Gameplay owns the screen. Navigation and inspection tools open on demand. */
+.visually-hidden{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+body:is([data-interface=flight],[data-interface=mission]) .topbar{height:62px;min-height:0;background:linear-gradient(#061019e6,#06101900);border:0;box-shadow:none;gap:12px;padding:8px 24px;pointer-events:none}
+body:is([data-interface=flight],[data-interface=mission]) .topbar>*{pointer-events:auto}
+body:is([data-interface=flight],[data-interface=mission]) .topbar::after{display:none}
+body:is([data-interface=flight],[data-interface=mission]) .topbar .wordmark{font-size:1rem;opacity:.8}
+.game-menu-toggle{min-height:44px;padding:0 15px;background:#0a1924ca;color:#c4d7df;border:1px solid #385361;font:.72rem var(--mono)}
+body:is([data-interface=flight],[data-interface=mission]) .topbar nav{display:none}
+body:is([data-interface=flight],[data-interface=mission]) .topbar.game-menu-open nav{display:flex;position:absolute;left:24px;top:64px;z-index:30;padding:16px;background:#071721f5;border:1px solid var(--line);gap:18px}
+body:is([data-interface=flight],[data-interface=mission]) .topbar .solaris-trigger{margin-left:auto;background:#0a1924cf;min-height:44px}
+body[data-interface=mission] .story-heading{display:none}
+body[data-interface=mission] .mission-brief{top:80px;left:28px;right:28px;width:auto;max-height:none;background:none;border:0;padding:0;pointer-events:none;box-shadow:none}
+body[data-interface=mission] .mission-brief::before,body[data-interface=mission] .mission-brief::after{display:none}
+body[data-interface=mission] .mission-objective{display:flex;align-items:center;gap:14px;padding:0;margin:0;border:0;text-shadow:0 2px 8px #000}
+body[data-interface=mission] .mission-objective h2{display:none}
+body[data-interface=mission] .mission-objective #objective{font:500 .82rem/1.5 var(--mono);margin:0;max-width:600px;color:#e2e9ed}
+body[data-interface=mission] .mission-objective #progress{font-size:.68rem;color:var(--cyan)}
+body[data-interface=mission] .mission-brief>.mission-actions{position:fixed;bottom:24px;right:28px;pointer-events:auto;background:#071721b8;padding:5px;gap:4px}
+body[data-interface=mission] .mission-brief>.mission-actions .button{background:none;border:0;min-height:44px;font-size:.72rem;padding:0 12px}
+body[data-interface=mission] #control-notes{position:fixed;bottom:90px;right:28px;background:#0a1924f5;max-width:320px;padding:18px;border:1px solid var(--line);pointer-events:auto;font-size:.82rem;line-height:1.7}
+body[data-interface=mission] .mission-sidebar{display:none}
+body[data-interface=mission] .drawer .mission-sidebar{display:block;position:static;width:auto;padding:0}
+body[data-interface=mission] .scanner-toggle{display:inline-flex!important}
+body[data-interface=mission] .drawer{inset:0 0 0 auto;width:380px;max-width:100%;height:100dvh;max-height:100dvh;margin:0;background:#081923f5;border-left:1px solid #506575}
+body[data-interface=mission] .drawer #navigation-tools{display:block}
+body[data-interface=mission] #navigation-tools[hidden]{display:none!important}
+body[data-interface=mission] .drawer .mission-panel{border:0;padding:16px 0;background:none;box-shadow:none}
+body[data-interface=mission] .drawer .mission-panel::before,body[data-interface=mission] .drawer .mission-panel::after{display:none}
+body[data-interface=mission] .field-controls{left:24px;right:auto;bottom:24px;width:auto;padding:0;background:none;border:0;box-shadow:none;display:flex;gap:14px;pointer-events:none}
+body[data-interface=mission] .field-controls::before,body[data-interface=mission] .field-controls::after{display:none}
+body[data-interface=mission] .field-controls>*{pointer-events:auto}
+body[data-interface=mission] .field-actions{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);min-width:0;background:none;padding:0;text-align:center}
+body[data-interface=mission] .field-actions p{display:none}
+body[data-interface=mission] .field-actions .button{background:#081923e6;border-color:#699eaa;box-shadow:0 4px 20px #0006;font:.8rem Inter,sans-serif;min-height:46px;padding:0 20px}
+body[data-interface=mission] .mission-layout[data-phase=recover] #scan{display:none}
+body[data-interface=mission] .scene-toolbar{left:28px;right:auto;bottom:24px;background:#071721b8;border:0;z-index:4}
+body[data-interface=mission] .scene-toolbar summary{font-size:.72rem}
+body[data-interface=mission] .scene-caption{bottom:164px!important;left:50%!important;right:auto!important;transform:translateX(-50%)!important;width:550px!important;max-width:calc(100% - 32px);max-height:none;padding:12px 28px;background:linear-gradient(90deg,#07121c00,#07121ce0 10%,#07121ce0 90%,#07121c00);border:0;text-align:center;pointer-events:none;overflow:visible}
+body[data-interface=mission] .scene-caption span{font:.65rem var(--mono);color:var(--amber)}
+body[data-interface=mission] .scene-caption p{font-size:.82rem;line-height:1.55;color:#edf0ef;text-shadow:0 1px 4px #000;margin-top:6px}
+body[data-interface=mission] .scene-caption:has(p:empty){display:none}
+body[data-interface=mission] #briefing{pointer-events:auto;position:absolute;left:0;top:40px;width:330px;max-width:calc(100vw - 40px);background:#081923f0;padding:20px;border:1px solid var(--line)}
+body[data-interface=mission] .mission-layout:is([data-phase=assemble],[data-phase=complete]) .scene-toolbar{bottom:24px}
+body[data-interface=mission] #mission-complete{position:fixed;top:auto;right:auto;left:50%;height:auto;bottom:110px;transform:translateX(-50%);width:500px;max-width:calc(100% - 32px);background:#081923e6;padding:20px}
+.surface-waypoint-hud{position:fixed;left:50%;top:calc(50% - 85px);pointer-events:none;transform:translate(-50%,-100%);font:.65rem var(--mono);text-align:center;color:#c9f2f4;text-shadow:0 2px 4px #000;padding:8px;background:#06101970;white-space:nowrap;border-radius:3px}
+.surface-waypoint-hud::before{content:'◇';display:block;color:var(--cyan);font:24px/1.2 Inter,sans-serif;margin-bottom:4px}
+.surface-waypoint-hud span{display:block;margin-top:5px;font-size:.6rem;color:#e8eded}
+.direction-pad{gap:5px}.direction-pad button{border-radius:6px;background:#0b1b23d8;min-width:46px;min-height:46px;touch-action:none}
+body[data-interface=mission] .direction-pad{display:none}
+body[data-interface=mission] .scene-fallback~.surface-waypoint-hud{display:none}
+body[data-interface=mission]:has(.scene-fallback) .direction-pad{display:grid}
+body[data-interface=mission]:has(.scene-fallback) .field-actions{bottom:180px}
+@media(pointer:coarse){body[data-interface=mission] .direction-pad{display:grid}body[data-interface=mission] .scene-toolbar{bottom:145px}}
+@media(max-width:620px){
+ body:is([data-interface=flight],[data-interface=mission]) .topbar{padding:8px 14px;height:58px;gap:8px}.game-menu-toggle{padding:0 12px;font-size:.66rem}body:is([data-interface=flight],[data-interface=mission]) .topbar .wordmark{font-size:.88rem}
+ body[data-interface=mission] .mission-brief{top:77px;left:16px;right:16px}.mission-objective{flex-wrap:wrap;gap:5px!important}body[data-interface=mission] .mission-objective #objective{font-size:.7rem}body[data-interface=mission] .mission-objective #progress{font-size:.58rem}
+ body[data-interface=mission] .mission-brief>.mission-actions{right:12px;bottom:18px;width:166px;flex-wrap:wrap;justify-content:end;padding:4px}body[data-interface=mission] .mission-brief>.mission-actions .button{font-size:.66rem;padding:0 9px}
+ body[data-interface=mission] .field-controls{bottom:18px;left:14px;right:auto;width:auto;padding:0}body[data-interface=mission] .field-actions{bottom:156px;max-width:calc(100% - 28px);width:max-content}
+ body[data-interface=mission] .field-actions .button{font-size:.76rem;padding:0 16px}body[data-interface=mission] .scene-caption{bottom:216px!important;padding:10px 15px!important}body[data-interface=mission] .scene-caption p{font-size:.74rem}
+ body[data-interface=mission] .scene-toolbar{left:auto;right:16px;bottom:123px!important}body[data-interface=mission] .scene-toolbar summary{font-size:.67rem}
+ body[data-interface=mission] .drawer{inset:auto 0 0;width:100%;height:auto;max-height:53dvh;border-top:1px solid var(--line);border-left:0}.surface-waypoint-hud{font-size:.6rem}body[data-interface=mission] #control-notes{right:12px;bottom:170px;max-width:calc(100% - 24px)}
+ body[data-interface=mission] .direction-pad{display:grid}body[data-interface=mission] #mission-complete{bottom:154px}body[data-interface=mission] #mission-complete h2{font-size:1.3rem}
+}
+body[data-interface=mission] .mission-brief,body[data-interface=mission] .field-controls{backdrop-filter:none;overflow:visible;transform:none}
+body[data-interface=mission] #detail-drawer::backdrop{background:transparent;backdrop-filter:none}
+body[data-interface=mission] .drawer:has(#workbench:not([hidden])) .signal-figure{display:none}
+
+body[data-interface=mission] .mission-layout[data-phase=complete] .mission-brief>.mission-actions{display:none}

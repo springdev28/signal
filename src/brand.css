@@ -1,0 +1,33 @@
+/* Unmodified Figma export: inverse wordmark, node 1:29, natural size 274 × 76.
+   Scale the whole artwork uniformly; retain its authored SVG dimensions. */
+.wordmark {
+  position: relative;
+  display: block;
+  flex: 0 0 137px;
+  width: 137px;
+  height: 44px;
+}
+.wordmark .brand-art {
+  position: absolute;
+  top: 3px;
+  left: 0;
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: none;
+  transform: scale(.5);
+  transform-origin: top left;
+  pointer-events: none;
+}
+body:is([data-interface=flight],[data-interface=mission]) .topbar .wordmark {
+  opacity: 1;
+}
+@media (max-width: 620px) {
+  .wordmark { flex-basis: 109.6px; width: 109.6px; }
+  .wordmark .brand-art { top: 6.8px; transform: scale(.4); }
+}
+@media (max-width: 360px) {
+  .wordmark { flex-basis: 93.16px; width: 93.16px; }
+  .wordmark .brand-art { top: 9.08px; transform: scale(.34); }
+  .topbar .explore-trigger { gap: 4px; }
+}

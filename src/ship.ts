@@ -1,11 +1,12 @@
 import * as THREE from 'three';
-import { barrel, metal, rounded, strut, tube } from './geometry';
+import { barrel, rounded, strut, tube } from './geometry';
 import { paintModel } from './paint';
+import { astraMaterial } from './astra-materials';
 
 export function createShip(radar?:THREE.Texture){
   const ship=new THREE.Group(),interior=new THREE.Group(),exteriorTrim=new THREE.Group();
   ship.add(exteriorTrim);
-  const hull=metal(0x607480,.42,.76),edge=metal(0x9aafa7,.45,.65),brass=metal(0xb68b57,.5,.7),dark=metal(0x24343e,.3,.78);
+  const hull=astraMaterial(0x687f85,'enamel',.42),edge=astraMaterial(0xaab4ad,'steel',.55),brass=astraMaterial(0xb68b57,'brass',.5),dark=astraMaterial(0x24343e,'steel',.3);
   const cyan=new THREE.MeshStandardMaterial({color:0x66e0f3,emissive:0x1b8ca9,emissiveIntensity:2,roughness:.65});
   interior.add(rounded([2.5,.16,3.9],.05,dark,[0,.23,.05]));
   for(let i=0;i<13;i++)interior.add(rounded([1.65,.025,.045],.008,edge,[0,.326,-1.55+i*.26]));
@@ -25,6 +26,8 @@ export function createShip(radar?:THREE.Texture){
     const wing=new THREE.Mesh(new THREE.ExtrudeGeometry(wingShape,{depth:.12,bevelEnabled:true,bevelSize:.08,bevelThickness:.05,bevelSegments:2,steps:1}),hull);wing.rotation.x=Math.PI/2;wing.position.y=1.1;ship.add(wing);
     ship.add(barrel(.43,3.7,hull,[side*1.82,.93,.4],'z'),barrel(.48,.15,brass,[side*1.82,.93,1.95],'z'),barrel(.33,.18,dark,[side*1.82,.93,2.09],'z'));
     for(let i=0;i<8;i++)ship.add(rounded([.13,.62,.19],.03,edge,[side*1.83+Math.sin(i*Math.PI/4)*.39,.93+Math.cos(i*Math.PI/4)*.39,1.2]));
+    for(let i=0;i<12;i++){const a=i*Math.PI/6;const blade=rounded([.035,.21,.05],.007,edge,[side*1.82+Math.sin(a)*.23,.93+Math.cos(a)*.23,2.195]);blade.rotation.z=-a+.35;exteriorTrim.add(blade);}
+    exteriorTrim.add(tube([[side*1.4,1.22,-.7],[side*1.6,1.4,-.2],[side*1.75,1.35,.4],[side*1.9,1.18,.7]],.023,brass));
     for(let i=0;i<7;i++)exteriorTrim.add(barrel(.443,.038,i%3===0?brass:edge,[side*1.82,.93,-1.15+i*.39],'z'));
     for(let i=0;i<5;i++)exteriorTrim.add(rounded([.22,.035,.43],.01,dark,[side*(1.85+i*.2),1.19,1.3]));
     for(const z of [-1.6,1.4]){

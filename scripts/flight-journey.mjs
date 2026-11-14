@@ -1,8 +1,9 @@
+import { walkTo } from './ground-navigation.mjs';
 import {expect} from '@playwright/test';
 export async function flyJourney(page,{mobile=false,capture=async()=>{},hold=0}={}){
  const pause=()=>page.waitForTimeout(hold);
  const click=async id=>{const button=page.locator(id);if(mobile)await button.tap();else await button.click();};
- const records=async open=>{if(await page.locator('#flight-records').evaluate(e=>e.open)!==open)await page.locator('#flight-records summary').click();};
+ const records=async open=>{if(await page.locator('#flight-records').evaluate(e=>e.open)!==open)await page.locator(open?'#open-flight-records':'#close-flight-records').click();};
  const pos=async()=> (await page.locator('#flight').getAttribute('data-position')).split(',').map(Number);
  async function holdControl(key,selector,condition,timeout=20000){
   if(!mobile){await page.keyboard.down(key);try{await expect.poll(condition,{timeout,intervals:[35]}).toBeTruthy();}finally{await page.keyboard.up(key);}}
@@ -16,8 +17,8 @@ export async function flyJourney(page,{mobile=false,capture=async()=>{},hold=0}=
   await page.locator('#flight-stage canvas').focus();
   const error=async()=>{const a=target-Number(await page.locator('#flight').getAttribute('data-heading'));return Math.atan2(Math.sin(a),Math.cos(a));};
   for(let n=0;n<3;n++){
-   const d=await error();if(Math.abs(d)<.045)break;
-   await holdControl(d>0?'d':'a',`[data-steer="${d>0?'right':'left'}"]`,async()=>d>0?(await error())<.025:(await error())>-.025);
+   const d=await error();if(Math.abs(d)<.08)break;
+   await holdControl(d>0?'d':'a',`[data-steer="${d>0?'right':'left'}"]`,async()=>d>0?(await error())<.105:(await error())>-.105);
   }
  }
  async function fly(x,z){
@@ -32,13 +33,13 @@ export async function flyJourney(page,{mobile=false,capture=async()=>{},hold=0}=
  await page.goto('./odyssey/?replay=1');
  await expect(page.locator('#flight-stage.view-ready canvas')).toBeVisible();
  await capture('briefing');await pause();await click('#start-survey');
- await records(true);await page.locator('#search-region').selectOption('solar');await records(!mobile);
+ await records(true);await page.locator('#search-region').selectOption('solar');await records(false);
  await click('#flight-scan');await expect(page.locator('#flight-line')).toContainText('does not agree');
  await expect(page.locator('#flight')).toHaveAttribute('data-scans','0');
  async function scans(){
   for(const id of ['camera','solar','wheel']){
-   await records(true);await click(`[data-contact="${id}"]`);await page.locator('#search-region').selectOption(id);await pause();
-   await records(!mobile);await page.waitForTimeout(850);await click('#flight-scan');await pause();
+   await records(false);await click(`[data-contact="${id}"]`);await records(true);await page.locator('#search-region').selectOption(id);await pause();
+   await records(false);await page.waitForTimeout(850);await click('#flight-scan');await pause();
   }
  }
  await scans();await expect(page.locator('#flight')).toHaveAttribute('data-scans','3');
@@ -46,10 +47,10 @@ export async function flyJourney(page,{mobile=false,capture=async()=>{},hold=0}=
  await expect(page.locator('#flight')).toHaveAttribute('data-scans','3');
  await capture('first-bearings');
  await fly(-14,5);await scans();await expect(page.locator('#flight')).toHaveAttribute('data-scans','6');
- await click('#flight-camera');await fly(24,5);await capture('ship');await click('#flight-camera');
+ await fly(24,5);await capture('banked-search');
  await scans();await expect(page.locator('#flight')).toHaveAttribute('data-scans','9');
  for(const id of ['camera','solar','wheel']){
-  await records(true);await click(`[data-contact="${id}"]`);await expect(page.locator('#lock-contact')).toBeEnabled();await click('#lock-contact');await pause();
+  await records(false);await click(`[data-contact="${id}"]`);await expect(page.locator('#lock-contact')).toBeEnabled();await click('#lock-contact');await pause();
  }
  await expect(page.locator('#flight')).toHaveAttribute('data-locks','3');
  const fixes=await page.evaluate(()=>JSON.parse(localStorage.getItem('signal-flight-v1')).contacts);
@@ -61,19 +62,12 @@ export async function flyJourney(page,{mobile=false,capture=async()=>{},hold=0}=
  await expect(page.locator('#mission-stage canvas')).toBeVisible({timeout:20000});await expect(page.locator('#progress')).toHaveText('0/3 recovered');
  expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('signal-flight-v1')).contacts)).toEqual(fixes);
  await capture('surface');
- const groundPos=async()=>{const s=await page.locator('#field-position').innerText(),m=s.match(/(\d+) m ([EW]) · (\d+) m ([NS])/);return [Number(m[1])*(m[2]==='W'?-1:1),Number(m[3])*(m[4]==='N'?-1:1)];};
- async function walk(x,z){
-  for(let axis=0;axis<2;axis++)for(let n=0;n<4;n++){
-   const target=axis?z:x,d=target-(await groundPos())[axis];if(Math.abs(d)<=1)break;
-   const dir=axis?(d>0?'south':'north'):(d>0?'east':'west'),key=axis?(d>0?'s':'w'):(d>0?'d':'a');
-   await holdControl(key,`[aria-label="Move ${dir}"]`,async()=>d>0?(await groundPos())[axis]>=target-1:(await groundPos())[axis]<=target+1,15000);
-  }
- }
+ const walk=(x,z)=>walkTo(page,'#mission-stage',x,z,mobile);
  for(const [id,name,x,z] of [['camera','Camera assembly',6,-12],['solar','Solar panel',14,-8],['wheel','Wheel assembly',9,-5]]){
   await walk(x,z);await page.getByRole('button',{name:'Inspect '+name,exact:true}).click();await pause();await click('#collect-part');await page.waitForTimeout(800);
  }
  await expect(page.locator('#progress')).toHaveText('0/3 fitted');
- if(mobile)await click('#scanner-toggle');
+ await click('#scanner-toggle');
  await capture('workbench');
  await page.locator('#assembly-part').selectOption('camera');await page.locator('#assembly-mount').selectOption('deck');await click('#fit-part');
  await expect(page.locator('#fit-feedback')).toContainText('doesn’t fit');

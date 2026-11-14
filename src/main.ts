@@ -9,11 +9,14 @@ import './simulation.css';
 import './tech-interface.css';
 import './flight.css';
 import './celestial-art.css';
+import './experience.css';
+import './gameplay.css';
+import './brand.css';
 import { base, destinations, exhibits, link, paths, sources, type Page } from './catalog';
 import { atlasWorld, compareWorlds, hardwareExhibit, mountExhibit, mountWorld } from './atlas-ui';
 import { experimentMarkup, mountExperiment } from './experiment';
 import { mountSolaris, solarisMarkup, type SolarisContext } from './solaris';
-import { icon, routeLink, sourceLink } from './ui';
+import { icon, mountNavigationMotion, routeLink, sourceLink } from './ui';
 import { orbitMarkup, mountOrbits } from './orbits';
 import { loadStory, saveStory, startStory } from './mission';
 import { resetFlight } from './flight-state';
@@ -40,7 +43,7 @@ const orbital = page === 'home' || page === 'atlas';
 const flight=page==='story'&&!query.has('deploy')&&loadStory().phase==='briefing';
 document.body.dataset.interface = orbital ? 'orbit' : flight?'flight':surface ? 'surface' : page === 'story' ? 'mission' : ['moon','mars'].includes(page) ? 'world' : ['opportunity','lunar','collection'].includes(page) ? 'hardware' : 'reading';
 const app = document.querySelector<HTMLDivElement>('#app')!;
-const wordmark = `<a class="wordmark" href="${link('home')}" aria-label=">_signal home"><span>&gt;_</span>signal</a>`;
+const wordmark = `<a class="wordmark" href="${link('home')}" aria-label=">_signal home"><img class="brand-art" src="${base}brand/signal-wordmark.svg" alt="" width="274" height="76"></a>`;
 
 const explore = `<div class="explore-menu" id="explore-menu">
   <button id="explore" class="explore-trigger" type="button" aria-expanded="false" aria-controls="explore-links">Explore ${icon('down',16)}</button>
@@ -64,7 +67,7 @@ async function content() {
 
 document.title = page === 'home' ? '>_signal' : `${labels[page]} · >_signal`;
 app.innerHTML = `<a class="skip" href="#main">Skip to content</a>
-  <header class="topbar">${wordmark}<nav aria-label="Main navigation">
+  <header class="topbar">${wordmark}${page==='story'?'<button class="game-menu-toggle" aria-expanded="false" aria-controls="game-nav">Menu</button>':''}<nav id="game-nav" aria-label="Main navigation">
   ${explore}
   <a class="collection-link" href="${link('collection')}" aria-label="My Collection" ${page==='collection'?'aria-current="page"':''}>
   ${icon('box',18)}<span><span class="collection-full">My </span>Collection</span></a></nav>
@@ -110,6 +113,7 @@ menu.addEventListener('focusout', event => {
 });
 
 mountSolaris(context);
+mountNavigationMotion();
 if (orbital) {
   mountOrbits(context, false).catch(() => {
     document.querySelector('#orbital-space .view-state')!.textContent = 'Orbital view unavailable. Choose Moon or Mars below.';
@@ -125,10 +129,15 @@ if (orbital) {
     if(flight){
       void import('./hardware').then(module=>module.loadOpportunity()).catch(()=>undefined);
       (await import('./flight')).mountFlight(context,()=>{
-        document.body.dataset.interface='mission';document.querySelector('#ground-story')!.removeAttribute('hidden');
-        void import('./story').then(module=>module.mountStory(context));
+        void import('./story').then(module=>{
+          document.body.dataset.interface='mission';module.mountStory(context);
+          document.querySelector('#ground-story')!.removeAttribute('hidden');
+        });
       });
     }else (await import('./story')).mountStory(context);
     break;
   case 'collection': (await import('./collection')).mountCollection(); break;
 }
+
+const gameMenu=document.querySelector<HTMLButtonElement>('.game-menu-toggle');
+gameMenu?.addEventListener('click',()=>{const open=gameMenu.getAttribute('aria-expanded')!=='true';gameMenu.setAttribute('aria-expanded',String(open));document.querySelector('.topbar')!.classList.toggle('game-menu-open',open);});

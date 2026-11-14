@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { createTerrain } from './terrain';
 import { createShip } from './ship';
+import { createCockpit } from './cockpit';
 import { createAstra } from './astra';
 import { landingSite, type FlightSave } from './flight-state';
 import { addSurveyLandmarks } from './landmarks';
@@ -16,7 +17,8 @@ export function createFlightScene(host:HTMLElement,radar:HTMLCanvasElement){
   addSurveyLandmarks(terrain.group,terrain.height);
   const radarTexture=new THREE.CanvasTexture(radar);radarTexture.colorSpace=THREE.SRGBColorSpace;
   const craft=createShip(radarTexture);craft.ship.scale.setScalar(1.5);scene.add(craft.ship);
-  const camera=new THREE.PerspectiveCamera(67,1,.045,500);
+  const camera=new THREE.PerspectiveCamera(68,1,.045,500);
+  scene.add(camera);const cockpit=createCockpit(camera);
   const astra=createAstra();scene.add(astra.model);astra.model.visible=false;
   const landingRing=new THREE.Mesh(new THREE.RingGeometry(4.9,5.08,70),new THREE.MeshBasicMaterial({color:0x8fdce4,transparent:true,opacity:.7,side:THREE.DoubleSide}));
   landingRing.rotation.x=-Math.PI/2;landingRing.position.set(landingSite.x,terrain.height(landingSite.x,landingSite.z)+.08,landingSite.z);scene.add(landingRing);
@@ -35,7 +37,7 @@ export function createFlightScene(host:HTMLElement,radar:HTMLCanvasElement){
   renderer.domElement.addEventListener('pointerdown',e=>{drag=e;renderer.domElement.setPointerCapture(e.pointerId);});
   renderer.domElement.addEventListener('pointermove',e=>{if(!drag)return;lookX=THREE.MathUtils.clamp(lookX+(e.clientX-drag.clientX)*.003,-.6,.6);lookY=THREE.MathUtils.clamp(lookY+(e.clientY-drag.clientY)*.002,-.25,.32);drag=e;});
   for(const event of ['pointerup','pointercancel'])renderer.domElement.addEventListener(event,()=>{drag=undefined;});
-  const resize=()=>{camera.aspect=host.clientWidth/host.clientHeight;camera.updateProjectionMatrix();renderer.setSize(host.clientWidth,host.clientHeight,false);};
+  const resize=()=>{camera.aspect=host.clientWidth/host.clientHeight;camera.updateProjectionMatrix();renderer.setSize(host.clientWidth,host.clientHeight,false);cockpit.resize(host.clientWidth,host.clientHeight);};
   const observer=new ResizeObserver(resize);observer.observe(host);resize();
   const local=new THREE.Vector3(),target=new THREE.Vector3(),offset=new THREE.Vector3();
   function draw(frame:FlightFrame){
@@ -48,10 +50,10 @@ export function createFlightScene(host:HTMLElement,radar:HTMLCanvasElement){
     craft.ship.rotation.set(frame.pitch*.13,-state.heading,bank);
     craft.ship.updateMatrixWorld(true);
     craft.hatch.rotation.x=-hatch*Math.PI/2;
-    craft.hatch.visible=outside;
+    craft.ship.visible=outside;craft.hatch.visible=outside;
     craft.shell.visible=outside;craft.canopy.visible=outside;
     craft.exteriorTrim.visible=outside;
-    craft.interior.visible=!outside;
+    craft.interior.visible=false;cockpit.root.visible=!outside;cockpit.animate(bank,throttle);
     for(const jet of craft.jets){jet.visible=!landing&&throttle>.02;jet.scale.y=.3+throttle*2.5;jet.material.opacity=.2+throttle*.45;}
     for(const jet of craft.downJets){jet.visible=state.phase==='landing';jet.scale.y=.4+Math.min(1,state.altitude/8)*1.1;}
     if(outside){
@@ -62,8 +64,8 @@ export function createFlightScene(host:HTMLElement,radar:HTMLCanvasElement){
       if(state.phase==='exit')target.lerp(astra.model.position.clone().add(new THREE.Vector3(0,1.3,0)),Math.min(1,exit*.75));
       camera.position.copy(target).add(offset);camera.lookAt(target);
     }else{
-      camera.position.copy(craft.ship.localToWorld(local.set(0,2,.85)));
-      target.copy(craft.ship.localToWorld(local.set(Math.sin(lookX)*4,-.1+lookY*4,-5)));
+      camera.position.copy(craft.ship.localToWorld(local.set(0,2.1,-.7)));
+      target.copy(craft.ship.localToWorld(local.set(Math.sin(lookX)*8,-1.7+lookY*5,-10)));
       camera.up.set(-Math.sin(bank),Math.cos(bank),0);camera.lookAt(target);
     }
     if(outside)camera.up.set(0,1,0);

@@ -36,6 +36,6 @@ test('flight failure retains clue interpretation, radar and keyboard controls',a
  await page.locator('#flight-records').evaluate((el:HTMLDetailsElement)=>el.open=true);
  await page.locator('#search-region').selectOption('camera');await page.locator('#flight-records').evaluate((el:HTMLDetailsElement)=>el.open=false);
  await page.locator('#flight-scan').click();await expect(page.locator('#flight')).toHaveAttribute('data-scans','1');
- await page.locator('[data-steer="right"]').press('Enter');await expect.poll(async()=>Number(await page.locator('#flight').getAttribute('data-heading'))).toBeGreaterThan(0);
+ await page.locator('#flight-scan').focus();await page.keyboard.down('ArrowRight');await page.waitForTimeout(350);await page.keyboard.up('ArrowRight');await expect.poll(async()=>Number(await page.locator('#flight').getAttribute('data-heading'))).toBeGreaterThan(0);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width);
 });

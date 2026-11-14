@@ -9,7 +9,7 @@ async function checkLayout(page: Page) {
       .filter(el => el.checkVisibility());
     for (const [i, control] of controls.entries()) {
       const a = control.getBoundingClientRect();
-      if (a.left < -1 || a.right > innerWidth + 1) issues.push('Navigation clipped: ' + control.textContent);
+      if (a.left < -1 || a.right > innerWidth + 1 || a.top < -1 || a.bottom > innerHeight + 1) issues.push('Navigation clipped: ' + control.textContent);
       for (const other of controls.slice(i + 1)) {
         const b = other.getBoundingClientRect();
         if (Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 &&
@@ -37,6 +37,7 @@ test('navigation and controls fit narrow, tablet, and desktop layouts', async ({
       await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toBeVisible();
       if (route === 'moon/' || route === 'opportunity/') await expect(page.locator('.view-ready')).toBeVisible();
       await checkLayout(page);
+      if(route==='odyssey/')await page.getByRole('button',{name:'Menu',exact:true}).click();
       await page.getByRole('button', { name: 'Explore', exact: true }).click();
       await expect(page.locator('#explore-links a')).toHaveText(['Omni-View', 'Odyssey']);
       await checkLayout(page);

@@ -6,8 +6,8 @@ import { celestialRim, createCelestialEnvironment, illustratePlanet } from './ce
 
 const radius = 1;
 const worldViews = {
-  moon: { latitude: 10, longitude: -8, sun: [.43, .37, .82], key: 0xffdfa3, fill: 0x77acb7, exposure: 1.14 },
-  mars: { latitude: 12, longitude: -35, sun: [.34, .40, .83], key: 0xffd9bf, fill: 0xc67549, exposure: 1.06 },
+  moon: { latitude: 10, longitude: -8, sun: [.43, .37, .82], key: 0xf4f2eb, fill: 0x9caebb, exposure: 1.10 },
+  mars: { latitude: 12, longitude: -35, sun: [.34, .40, .83], key: 0xffecdc, fill: 0xa8b1c3, exposure: 1.06 },
 } as const;
 
 // The maps are equirectangular, north up, with the prime meridian in the center.
@@ -33,28 +33,31 @@ export async function showAtlas(
   const viewport = panel.querySelector<HTMLElement>('.model-canvas')!;
   const world = worldViews[worldId];
   const loader = new THREE.TextureLoader();
-  const [map, relief] = await Promise.all([
-    loader.loadAsync(asset(`${worldId}-albedo.jpg`)),
-    worldId === 'moon' ? loader.loadAsync(asset('moon-relief.jpg')) : Promise.resolve(null),
+  const [map, relief, normal] = await Promise.all([
+    loader.loadAsync(asset(`${worldId}-albedo.webp`)),
+    worldId === 'moon' ? loader.loadAsync(asset('moon-height.webp')) : Promise.resolve(null),
+    worldId === 'moon' ? loader.loadAsync(asset('moon-normal.webp')) : Promise.resolve(null),
   ]);
   map.colorSpace = THREE.SRGBColorSpace;
   map.anisotropy = 8;
-  if (relief) relief.anisotropy = 8;
+  if (relief) relief.anisotropy = 8;if(normal)normal.anisotropy=8;
+  panel.dataset.geography=worldId==='moon'?'NASA LROC color + LOLA elevation':'NASA Viking imagery';
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x06151c);
   const environment = createCelestialEnvironment(scene, 38);
   const camera = new THREE.PerspectiveCamera(34, 1, .04, 80);
   const initial = geographicNormal(world.latitude, world.longitude);
-  const geometry = new THREE.SphereGeometry(radius, 144, 96);
+  const geometry = new THREE.SphereGeometry(radius, 256, 192);
   const material = illustratePlanet(new THREE.MeshStandardMaterial({
-    map, color: worldId === 'moon' ? 0xffedce : 0xebc4ad, roughness: 1,
-    bumpMap: relief, bumpScale: .045, metalness: 0,
+    map, color: 0xffffff, roughness: 1,
+    normalMap:normal,normalScale:new THREE.Vector2(1.35,1.35),displacementMap:relief,displacementScale:22000/1737400,displacementBias:-11000/1737400,metalness:0,
   }));
-  scene.add(new THREE.Mesh(geometry, material), celestialRim(radius, worldId === 'moon' ? 0xe4b971 : 0xe59356));
+  scene.add(new THREE.Mesh(geometry, material));
+  if(worldId==='mars')scene.add(celestialRim(radius,0xe59356));
   const sun = new THREE.DirectionalLight(world.key, 3.05);
   sun.position.set(world.sun[0], world.sun[1], world.sun[2]);
-  scene.add(sun, new THREE.AmbientLight(world.fill, worldId === 'moon' ? .011 : .026));
+  scene.add(sun, new THREE.AmbientLight(world.fill, .055));
 
   const markers = sites.map(site => {
     const button = document.createElement('button');

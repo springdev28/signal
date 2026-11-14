@@ -6,9 +6,9 @@ Use the supplied celestial illustration as an aesthetic reference for the live 3
 
 ## Art direction
 
-Carry the Arcane influence through painted material detail, stepped light values, expressive silhouettes, and strong directional lighting. Celestial surfaces retain their craters and identifying textures while receiving warm light, teal shadow tones, and fine luminous rims. Place stars at different depths and render drifting nebula forms in world space so camera motion reveals depth. In the cockpit, use cold instruments on worn metal; lunar terrain remains silver rock, and Mars uses burnt ochre dust and cool shadows. Keep a clear foreground, subject, and distant environment.
+Use semi-realistic rendering with restrained painted detail. Preserve continuous lighting, natural albedo, readable shadow detail, and the different responses of metal, cloth, glass, and rock. Keep visible brush grain subtle and attached to the 3D surface. Avoid posterized lighting, checkerboard patches, halftone shading, and artificial outlines. Warm highlights and cool shadows provide the Arcane influence. Retain recognizable craters and equipment, layered stars, and a subdued world-space nebula. Lunar terrain stays silver grey; Mars uses dusty ochre and cool distant ridges.
 
-Stage Solaris dialogue and landing as short in-engine scenes. Animate Astra’s lens focus, neck tilt, and silhouette before the first movement on foot. Give the hatch and touchdown weight through timing and camera framing. Use hand-painted dust and thruster effects sparingly so they guide the eye. Keep player control during flight and scanning, and restore it at the end of each scene.
+Stage Solaris dialogue and landing as short in-engine scenes. Give Astra a quiet idle performance through lens focus, neck glances, weight shifts, drape motion, and cable movement. Blend idle, walking, scanning, pickup, and assembly poses. Ease acceleration, braking, turns, and camera changes. Use short 140–240 ms interface transitions and respect reduced-motion preferences. Keep player control during flight and scanning, and restore it at the end of each scene.
 
 ## Palette and typography
 
@@ -28,10 +28,14 @@ Selected components show a checkmark, a matching model highlight, and one label 
 
 Use the full browser as the simulation interface, with a clear central view and compact translucent instruments around its edges. Group radar, flight controls, and the current contact in the cockpit. After landing, keep Astra and the terrain unobstructed; at the workbench, exchange navigation instruments for clues, inventory, and fit controls. Omnecarta uses the same instrument language around the artifact, with mission evidence available below.
 
-At 900 px and below, keep the active scene full-screen and collapse secondary instruments into drawers. Reserve non-overlapping areas for the objective, camera, movement or flight controls, current action, and captions. Reposition controls around the subject and keep long supporting information in scrollable panels. Use a compact header; icon controls retain accessible names. Keep the selected contact or part visible when an instrument opens.
+On foot, WASD, arrows, and touch controls move relative to the camera heading. Forward moves into the view, and Astra turns smoothly toward travel. Keep the primary action visible and disclose maps, waypoints, and camera tools on demand. At 900 px and below, collapse secondary instruments into drawers. Reserve separate areas for the objective, camera, movement, current action, and captions. Use a compact header and accessible names for icon controls. Keep the selected contact or part visible when an instrument opens.
 
 Keep one Solaris entry point, including inside a task drawer or dialog. Opening Solaris temporarily hides the underlying dialog; closing it restores the dialog and focus. Wrap long text and controls, let drawers scroll internally, and prevent horizontal overflow. At enlarged text sizes, allow vertical reflow instead of clipping.
 
 ## Character, imagery, and motion
 
-Build original 3D meshes for Astra, the ship and cockpit, the terrain, and inspectable spacecraft and parts. Give them painterly surface textures, deliberate silhouettes, and directional lighting. Rig Astra’s lenses, neck, drape, and cable for expressive acting. Keep fictional reconstruction distinct from NASA evidence and place source credits alongside the factual content.
+Build original 3D meshes for Astra, the ship and cockpit, the terrain, and inspectable spacecraft and parts. Preserve Astra’s original binocular head silhouette, lenses, and segmented neck. The antennae use visible angular bends, and the curved cable tail ends in an articulated three-pronged claw. Use the supplied body reference for a narrow mechanical torso, exposed waist wiring, articulated limbs, small claw-like hands and feet, and a weathered open-front shoulder cape.
+
+Use separate color, roughness, and relief maps for woven canvas, worn enamel, brushed steel, brass, and rubber. Show mechanical attachments at the shoulder axles, wrists, ankles, wire terminals, and tail socket. Keep the cape behind the moving arms, with a separate fold over the front shoulder. Check cloth faces as well as vertices for clearance. Keep the tail outside the arm swing and the soles planted on the ground during idle.
+
+The interactive Astra preview supports mouse and touch orbit, scroll or pinch zoom, and live idle, walk, scan, and recovery poses. Animate joints, lenses, cloth, and the tail claw together, with readable lighting. Keep fictional reconstruction distinct from NASA evidence and place source credits alongside factual content.

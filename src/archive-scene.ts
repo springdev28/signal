@@ -1,12 +1,15 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import type { HardwareId } from './catalog';
+import { exhibits, type HardwareId } from './catalog';
 import { loadOpportunity } from './hardware';
 import { createLunarRover } from './lunar-model';
 import { addLighting, bindOrbitButtons, fitDistance, mountViewport } from './scene';
+import { paintMaterial, paintModel, preparePaint } from './paint';
 
 export async function showHardware(panel: HTMLElement, id: HardwareId, onSelect: (id: string) => void) {
+  await preparePaint().catch(() => undefined);
   const model = id === 'lunar' ? createLunarRover() : (await loadOpportunity()).assembled();
+  paintModel(model, 1.4);
   const world = new THREE.Scene();
   const bounds = new THREE.Box3().setFromObject(model, true);
   const center = bounds.getCenter(new THREE.Vector3());
@@ -46,6 +49,7 @@ export async function showHardware(panel: HTMLElement, id: HardwareId, onSelect:
     if (!selected) {
       selected = material.clone();
       if (selected instanceof THREE.MeshStandardMaterial) {
+        if (material.userData.painted) paintMaterial(selected, Number(material.userData.paintScale) || 1.4);
         selected.color.lerp(new THREE.Color(0x91e9eb), .53);
         selected.emissive.setHex(0x3cbdc8);
         selected.emissiveIntensity = .62;
@@ -60,6 +64,18 @@ export async function showHardware(panel: HTMLElement, id: HardwareId, onSelect:
   let defaultFit = 6;
   let controls: OrbitControls | undefined;
   const host = panel.querySelector<HTMLElement>('.model-canvas')!;
+  const annotation = document.createElement('div');
+  annotation.className = 'model-annotation';
+  annotation.hidden = true;
+  annotation.setAttribute('aria-hidden', 'true');
+  annotation.innerHTML = '<svg><path/><circle r="4"/></svg><span></span>';
+  host.append(annotation);
+  const annotationPath = annotation.querySelector('path')!;
+  const annotationPoint = annotation.querySelector('circle')!;
+  const annotationLabel = annotation.querySelector('span')!;
+  const selectedBounds = new THREE.Box3();
+  const selectedCenter = new THREE.Vector3();
+  let selectedPart: string | undefined;
   const renderer = mountViewport(host, camera, resize);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.16;
@@ -73,7 +89,20 @@ export async function showHardware(panel: HTMLElement, id: HardwareId, onSelect:
   const ray = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   let down: THREE.Vector2 | undefined;
-  const draw = () => renderer.render(world, camera);
+  function draw() {
+    renderer.render(world, camera);
+    if (!selectedPart) return;
+    selectedBounds.makeEmpty();
+    for (const mesh of records.get(selectedPart)!) selectedBounds.expandByObject(mesh, true);
+    selectedBounds.getCenter(selectedCenter).project(camera);
+    const width = host.clientWidth, height = host.clientHeight;
+    const x = (selectedCenter.x + 1) * width / 2, y = (1 - selectedCenter.y) * height / 2;
+    annotation.hidden = Math.abs(selectedCenter.x) > .95 || Math.abs(selectedCenter.y) > .95 || selectedCenter.z > 1;
+    const endX = annotationLabel.offsetLeft, endY = annotationLabel.offsetTop + annotationLabel.offsetHeight / 2;
+    annotationPath.setAttribute('d', `M ${x} ${y} L ${endX - 16} ${endY} H ${endX}`);
+    annotationPoint.setAttribute('cx', String(x));
+    annotationPoint.setAttribute('cy', String(y));
+  }
 
   function resize() {
     const next = fitDistance(camera, radius, camera.aspect >= 1 ? 1.02 : .93);
@@ -83,7 +112,7 @@ export async function showHardware(panel: HTMLElement, id: HardwareId, onSelect:
     if (controls) {
       controls.maxDistance = next * 2.45;
       controls.update();
-      renderer.render(world, camera);
+      draw();
     }
   }
 
@@ -117,6 +146,9 @@ export async function showHardware(panel: HTMLElement, id: HardwareId, onSelect:
   return {
     select(part: string) {
       if (!records.has(part)) return;
+      selectedPart = part;
+      annotation.hidden = false;
+      annotationLabel.textContent = exhibits[id].instruments.find(instrument => instrument.id === part)?.name ?? part;
       for (const { id, mesh, original } of meshes) {
         mesh.material = id === part
           ? Array.isArray(original) ? original.map(highlighted) : highlighted(original)

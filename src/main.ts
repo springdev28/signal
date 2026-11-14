@@ -1,15 +1,23 @@
-import '@fontsource/barlow-condensed/latin-600.css';
 import '@fontsource/ibm-plex-mono/latin-500.css';
 import '@fontsource/inter/latin-400.css';
 import '@fontsource/inter/latin-600.css';
+import '@fontsource/barlow-condensed/latin-600.css';
 import './tokens.css';
 import './style.css';
 import './story.css';
-import { asset, base, destinations, exhibits, link, paths, sources, type Page } from './catalog';
-import { atlasOverview, atlasWorld, compareWorlds, hardwareExhibit, mountExhibit, mountWorld } from './atlas-ui';
+import './simulation.css';
+import './tech-interface.css';
+import './flight.css';
+import './celestial-art.css';
+import { base, destinations, exhibits, link, paths, sources, type Page } from './catalog';
+import { atlasWorld, compareWorlds, hardwareExhibit, mountExhibit, mountWorld } from './atlas-ui';
 import { experimentMarkup, mountExperiment } from './experiment';
 import { mountSolaris, solarisMarkup, type SolarisContext } from './solaris';
 import { icon, routeLink, sourceLink } from './ui';
+import { orbitMarkup, mountOrbits } from './orbits';
+import { loadStory, saveStory, startStory } from './mission';
+import { resetFlight } from './flight-state';
+import { surfaceMarkup, mountSurface } from './surface';
 
 const pathname = location.pathname.slice(base.length).replace(/(?:index\.html)?\/?$/, '');
 const page: Page = pathname === 'story' ? 'story'
@@ -21,50 +29,46 @@ const labels: Record<Page,string> = {
   experiment: 'Dust and solar power', story: 'Odyssey', collection: 'My Collection',
 };
 const context: SolarisContext = { view: page, subject: labels[page] };
+const query = new URLSearchParams(location.search);
+if(page==='story'&&query.has('replay')){
+  saveStory(startStory());
+  resetFlight();
+  history.replaceState(null,'',location.pathname);
+}
+const surface = (page === 'moon' || page === 'mars') && query.has('surface');
+const orbital = page === 'home' || page === 'atlas';
+const flight=page==='story'&&!query.has('deploy')&&loadStory().phase==='briefing';
+document.body.dataset.interface = orbital ? 'orbit' : flight?'flight':surface ? 'surface' : page === 'story' ? 'mission' : ['moon','mars'].includes(page) ? 'world' : ['opportunity','lunar','collection'].includes(page) ? 'hardware' : 'reading';
 const app = document.querySelector<HTMLDivElement>('#app')!;
 const wordmark = `<a class="wordmark" href="${link('home')}" aria-label=">_signal home"><span>&gt;_</span>signal</a>`;
 
 const explore = `<div class="explore-menu" id="explore-menu">
-  <button id="explore" class="explore-trigger ${page === 'home' ? 'button primary' : ''}" type="button" aria-expanded="false" aria-controls="explore-links">Explore ${icon('down',16)}</button>
+  <button id="explore" class="explore-trigger" type="button" aria-expanded="false" aria-controls="explore-links">Explore ${icon('down',16)}</button>
   <div class="explore-links" id="explore-links" hidden>
     ${routeLink('atlas',icon('circle',18) + 'Omni-View')}
     ${routeLink('story',icon('scan',18) + 'Odyssey')}
   </div></div>`;
 
-function home() {
-  return `<section class="home" style="--horizon:url('${asset('crater-horizon.jpg')}')">
-    <div class="home-copy">
-      <h1><span>&gt;_</span>signal</h1>
-      <p>Survey the Moon and Mars. Follow the traces left by their explorers, then help Astra recover what remains.</p>
-      ${explore}
-    </div>
-    <figure class="home-art">
-      <img src="${asset('astra-portrait.png')}" alt="Astra, a draped explorer with a binocular head, two antennae, and a curled cable">
-      <figcaption>Astra</figcaption>
-    </figure>
-  </section>`;
-}
-
 async function content() {
+  if (orbital) return orbitMarkup(false, page === 'home');
+  if (surface) return surfaceMarkup(page as 'moon' | 'mars');
   switch (page) {
-    case 'home': return home();
-    case 'atlas': return atlasOverview();
     case 'moon': case 'mars': return atlasWorld(page);
     case 'compare': return compareWorlds();
     case 'opportunity': case 'lunar': return hardwareExhibit(page);
     case 'experiment': return experimentMarkup();
     case 'collection': return (await import('./collection')).collectionMarkup();
-    case 'story': return (await import('./story')).storyMarkup();
+    case 'story': return `<div id="ground-story" ${flight?'hidden':''}>${(await import('./story')).storyMarkup()}</div>${flight?(await import('./flight')).flightMarkup():''}`;
   }
 }
 
 document.title = page === 'home' ? '>_signal' : `${labels[page]} · >_signal`;
 app.innerHTML = `<a class="skip" href="#main">Skip to content</a>
   <header class="topbar">${wordmark}<nav aria-label="Main navigation">
-  ${page === 'home' ? '' : explore}
+  ${explore}
   <a class="collection-link" href="${link('collection')}" aria-label="My Collection" ${page==='collection'?'aria-current="page"':''}>
   ${icon('box',18)}<span><span class="collection-full">My </span>Collection</span></a></nav>
-  <button class="solaris-trigger" type="button" data-open-solaris aria-haspopup="dialog" aria-expanded="false">${icon('solaris',19)} Solaris</button></header>
+  <button class="solaris-trigger" type="button" data-open-solaris aria-label="Solaris" aria-haspopup="dialog" aria-expanded="false">${icon('solaris',19)} <span>Solaris</span></button></header>
   <main id="main" tabindex="-1">${await content()}</main>
   <footer class="footer">${wordmark}${sourceLink(sources.archive,'NASA Data Archive')}</footer>
   ${solarisMarkup()}`;
@@ -106,10 +110,25 @@ menu.addEventListener('focusout', event => {
 });
 
 mountSolaris(context);
-switch (page) {
+if (orbital) {
+  mountOrbits(context, false).catch(() => {
+    document.querySelector('#orbital-space .view-state')!.textContent = 'Orbital view unavailable. Choose Moon or Mars below.';
+    for (const button of document.querySelectorAll<HTMLButtonElement>('[data-world]')) button.addEventListener('click', () => { location.href = link(button.dataset.world as 'moon' | 'mars'); });
+  });
+} else if (surface) {
+  mountSurface(page as 'moon' | 'mars', context);
+} else switch (page) {
   case 'moon': case 'mars': mountWorld(page, context); break;
   case 'opportunity': case 'lunar': mountExhibit(page, context); break;
   case 'experiment': mountExperiment(context); break;
-  case 'story': (await import('./story')).mountStory(context); break;
+  case 'story':
+    if(flight){
+      void import('./hardware').then(module=>module.loadOpportunity()).catch(()=>undefined);
+      (await import('./flight')).mountFlight(context,()=>{
+        document.body.dataset.interface='mission';document.querySelector('#ground-story')!.removeAttribute('hidden');
+        void import('./story').then(module=>module.mountStory(context));
+      });
+    }else (await import('./story')).mountStory(context);
+    break;
   case 'collection': (await import('./collection')).mountCollection(); break;
 }

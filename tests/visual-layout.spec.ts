@@ -32,7 +32,7 @@ test('navigation and controls fit narrow, tablet, and desktop layouts', async ({
   test.setTimeout(90000);
   for (const width of isMobile ? [320, 390] : [768, 1024, 1440]) {
     await page.setViewportSize({ width, height: 900 });
-    for (const route of ['', 'moon/', 'opportunity/', 'compare/', 'odyssey/', 'experiment/']) {
+    for (const route of ['', 'moon/', 'opportunity/', 'compare/', 'odyssey/', 'experiment/', 'mars/?surface=eagle']) {
       await page.goto('./' + route);
       await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toBeVisible();
       if (route === 'moon/' || route === 'opportunity/') await expect(page.locator('.view-ready')).toBeVisible();
@@ -44,31 +44,40 @@ test('navigation and controls fit narrow, tablet, and desktop layouts', async ({
   }
 });
 
-test('mission controls and captions occupy separate space from the canvas', async ({ page, isMobile }) => {
+test('mission HUD controls and captions do not overlap', async ({ page, isMobile }) => {
   await page.setViewportSize({ width: isMobile ? 320 : 1024, height: 900 });
-  await page.goto('./odyssey/');
+  await page.goto('./odyssey/?deploy=1');
   await expect(page.locator('#mission-stage canvas')).toBeVisible();
   await page.getByRole('button', { name: 'Start mission' }).click();
   await page.locator('#scene-caption').evaluate(el => {
-    el.textContent = 'A longer Solaris caption must remain readable and wrap below the scene without covering Astra, the terrain, or any camera controls.';
+    el.textContent = 'A longer Solaris caption must remain readable and wrap inside its reserved space without colliding with the camera or movement controls.';
   });
   const toolbar = (await page.locator('.scene-toolbar').boundingBox())!;
   const scene = (await page.locator('#mission-stage').boundingBox())!;
   const caption = (await page.locator('.scene-caption').boundingBox())!;
-  expect(toolbar.y + toolbar.height).toBeLessThanOrEqual(scene.y + 1);
-  expect(scene.y + scene.height).toBeLessThanOrEqual(caption.y + 1);
+  const field = (await page.locator('#field-controls').boundingBox())!;
+  const intersects = (a: typeof toolbar, b: typeof toolbar) =>
+    Math.min(a.x+a.width,b.x+b.width)-Math.max(a.x,b.x)>1 &&
+    Math.min(a.y+a.height,b.y+b.height)-Math.max(a.y,b.y)>1;
+  expect(scene.width).toBeGreaterThanOrEqual(page.viewportSize()!.width - 1);
+  expect(scene.height).toBeGreaterThanOrEqual(page.viewportSize()!.height - 1);
+  expect(intersects(toolbar,caption)).toBe(false);
+  expect(intersects(field,caption)).toBe(false);
+  expect(intersects(toolbar,field)).toBe(false);
   await checkLayout(page);
   if (isMobile) {
     await page.getByRole('button', { name: 'Map & scanner', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Back to controls' })).toBeFocused();
-    await page.getByRole('button', { name: 'Back to controls' }).click();
+    const drawer = page.getByRole('dialog', { name: 'Mission tools' });
+    await expect(drawer).toBeVisible();
+    await expect(drawer.locator('#signal-chart')).toBeVisible();
+    await drawer.getByRole('button', { name: 'Close details' }).click();
     await expect(page.locator('#scanner-toggle')).toBeFocused();
   }
 });
 
 test('Solaris temporarily replaces a task dialog and restores its focus', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 });
-  await page.goto('./odyssey/');
+  await page.goto('./odyssey/?deploy=1');
   await page.getByRole('button', { name: 'Clues', exact: true }).click();
   const clues = page.getByRole('dialog', { name: 'Clues', exact: true });
   await clues.getByRole('button', { name: 'Solaris', exact: true }).click();
@@ -81,7 +90,7 @@ test('Solaris temporarily replaces a task dialog and restores its focus', async 
 
 test('enlarged text reflows without clipping navigation or scene controls', async ({ page, isMobile }) => {
   await page.setViewportSize({ width: isMobile ? 390 : 1024, height: 900 });
-  await page.goto('./odyssey/');
+  await page.goto('./odyssey/?deploy=1');
   await page.addStyleTag({ content: 'html { font-size: 200%; }' });
   await checkLayout(page);
   await page.getByRole('button', { name: 'Solaris', exact: true }).click();

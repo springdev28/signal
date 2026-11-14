@@ -2,11 +2,12 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { asset, type WorldId, type AtlasSite } from './catalog';
 import { bindOrbitButtons, fitDistance, mountViewport } from './scene';
+import { celestialRim, createCelestialEnvironment, illustratePlanet } from './celestial-scene';
 
 const radius = 1;
 const worldViews = {
-  moon: { latitude: 10, longitude: -8, sun: [.43, .37, .82], key: 0xdfe9f6, fill: 0xadc9ee, exposure: 1.14 },
-  mars: { latitude: 12, longitude: -35, sun: [.34, .40, .83], key: 0xffd9bf, fill: 0xc67549, exposure: 1.06 },
+  moon: { latitude: 10, longitude: -8, sun: [.43, .37, .82], key: 0xfff3df, fill: 0x9caebb, exposure: 1.10 },
+  mars: { latitude: 12, longitude: -35, sun: [.34, .40, .83], key: 0xffecdc, fill: 0xa8b1c3, exposure: 1.06 },
 } as const;
 
 // The maps are equirectangular, north up, with the prime meridian in the center.
@@ -41,17 +42,20 @@ export async function showAtlas(
   if (relief) relief.anisotropy = 8;
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(34, 1, .04, 60);
+  scene.background = new THREE.Color(0x06151c);
+  const environment = createCelestialEnvironment(scene, 38);
+  const camera = new THREE.PerspectiveCamera(34, 1, .04, 80);
   const initial = geographicNormal(world.latitude, world.longitude);
   const geometry = new THREE.SphereGeometry(radius, 144, 96);
-  const material = new THREE.MeshStandardMaterial({
-    map, color: worldId === 'moon' ? 0xe8edf6 : 0xebc4ad, roughness: 1,
-    bumpMap: relief, bumpScale: .045, metalness: 0,
-  });
+  const material = illustratePlanet(new THREE.MeshStandardMaterial({
+    map, color: 0xffffff, roughness: 1,
+    bumpMap: relief, bumpScale: .018, metalness: 0,
+  }));
   scene.add(new THREE.Mesh(geometry, material));
+  if(worldId==='mars')scene.add(celestialRim(radius,0xe59356));
   const sun = new THREE.DirectionalLight(world.key, 3.05);
   sun.position.set(world.sun[0], world.sun[1], world.sun[2]);
-  scene.add(sun, new THREE.AmbientLight(world.fill, worldId === 'moon' ? .011 : .026));
+  scene.add(sun, new THREE.AmbientLight(world.fill, .055));
 
   const markers = sites.map(site => {
     const button = document.createElement('button');
@@ -88,7 +92,7 @@ export async function showAtlas(
   for (const { button } of markers) viewport.append(button);
 
   function resize() {
-    const nextDistance = fitDistance(camera, radius, .91);
+    const nextDistance = fitDistance(camera, radius, camera.aspect < 1 ? .76 : .73);
     camera.position.copy(previousDistance
       ? camera.position.multiplyScalar(nextDistance / previousDistance)
       : initial.clone().multiplyScalar(nextDistance));
@@ -149,6 +153,18 @@ export async function showAtlas(
   bindOrbitButtons(panel, controls, () => goTo(initial, defaultDistance), stop);
   controls.update();
   draw();
+  let ambienceFrame = 0;
+  function animateEnvironment(now: number) {
+    if (!document.hidden && !document.querySelector('dialog[open]')) {
+      environment.update(reduced.matches ? 0 : now * .001);
+      draw();
+    }
+    ambienceFrame = requestAnimationFrame(animateEnvironment);
+  }
+  if (!reduced.matches) ambienceFrame = requestAnimationFrame(animateEnvironment);
+  window.addEventListener('pagehide', () => {
+    stop(); cancelAnimationFrame(ambienceFrame); environment.dispose(); controls!.dispose(); renderer.dispose();
+  }, { once: true });
   return {
     focus(id: string) {
       const marker = markers.find(item => item.button.dataset.site === id);
@@ -156,6 +172,10 @@ export async function showAtlas(
       active = id;
       draw();
       goTo(marker.normal, Math.max(1.7, defaultDistance * .77));
+    },
+    descend(id: string) {
+      const marker = markers.find(item => item.button.dataset.site === id);
+      if (marker) goTo(marker.normal, 1.08);
     },
   };
 }

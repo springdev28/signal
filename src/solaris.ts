@@ -11,6 +11,7 @@ type MissionContext = {
   hints: number;
   selection?: string;
   cutscene: boolean;
+  flight?: { altitude:number; records:{id:string;samples:number;uncertainty:number;locked:boolean}[] };
 };
 export type SolarisContext = {
   view: Page;

@@ -1,27 +1,24 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { box, barrel, metal, rounded, strut } from './geometry';
+import { barrel, metal, rounded, strut } from './geometry';
 import { createAstra } from './astra';
+import { createTerrain, terrainHeight } from './terrain';
+import { paintModel } from './paint';
+import { addSurveyLandmarks } from './landmarks';
+import { createShip } from './ship';
+import { loadFlight, type Fix } from './flight-state';
 import type { OpportunityModel } from './hardware';
 import { missionSite, type PartId, type StorySave } from './mission';
 
-const rock=new THREE.MeshStandardMaterial({color:0x8b5945,roughness:1,flatShading:true});
 const white=new THREE.MeshStandardMaterial({color:0xe9dbc1,roughness:.65});
 const suitDark=new THREE.MeshStandardMaterial({color:0x302523,roughness:.77});
 const amber=new THREE.MeshStandardMaterial({color:0xd78b37,metalness:.4,roughness:.29});
 const marker=new THREE.MeshBasicMaterial({color:0x8de6e8,side:THREE.DoubleSide});
 const cyan=new THREE.MeshBasicMaterial({color:0x8eeded,side:THREE.DoubleSide});
 const mountColor=new THREE.MeshBasicMaterial({color:0xb2eff1,transparent:true,opacity:.13,depthWrite:false});
-function height(x:number,z:number) {
-  const radius=Math.hypot(x-19,z+19);
-  const crater=-1.7*Math.exp(-((radius/7)**2))+.68*Math.exp(-(((radius-9)/2.4)**2));
-  const fold = .37*Math.sin(x*.21+z*.08)*Math.cos(z*.16) + .15*Math.sin((x+z)*.51);
-  const ridge = Math.max(0, (Math.hypot(x,z)-23)/7)
-    * (.9+.78*Math.sin(z*.23)+.31*Math.cos(x*.42+z*.31));
-  return crater+fold+ridge;
-}
+const height = (x:number,z:number) => terrainHeight(x,z,'mars');
 const onGround=(object:THREE.Object3D,x:number,z:number)=>object.position.set(x,height(x,z),z);
-type SceneState = { save:StorySave; selection:PartId|null; angle:number; cutscene:boolean };
+type SceneState = { save:StorySave; selection:PartId|null; angle:number; cutscene:boolean; talkUntil:number; waypoint?:Fix };
 type SceneActions = { frame:(seconds:number)=>void; pick:(id:PartId)=>void; mount:(id:string)=>void };
 const partId = (o:THREE.Object3D) => o.userData.part as PartId|undefined;
 
@@ -30,111 +27,38 @@ export function createStoryScene(host:HTMLElement, actions:SceneActions, hardwar
   const renderer = new THREE.WebGLRenderer({antialias:true});
   renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
   renderer.toneMapping=THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure=1.22;
+  renderer.toneMappingExposure=1.08;
   renderer.domElement.setAttribute('aria-label','3D mission scene');
   host.prepend(renderer.domElement);
   const world=new THREE.Scene();
-  const dust=new THREE.FogExp2(0xa16d58,.020);
+  const terrain=createTerrain(world,'mars');
+  const dust=terrain.fog;
   world.fog=dust;
-  const sky=new THREE.Mesh(new THREE.SphereGeometry(119,20,12),new THREE.ShaderMaterial({
-    side:THREE.BackSide,depthWrite:false,
-    vertexShader:`varying vec3 vPosition;
-      void main(){vPosition=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
-    fragmentShader:`varying vec3 vPosition;
-      void main(){
-        vec3 d=normalize(vPosition);
-        vec3 low=vec3(.45,.25,.18), high=vec3(.09,.125,.16);
-        vec3 sky=mix(low,high,smoothstep(-.025,.64,d.y));
-        float glow=pow(max(0.,dot(d,normalize(vec3(-.74,.12,-.66)))),8.);
-        gl_FragColor=vec4(sky+glow*vec3(.21,.115,.063),1.);
-        #include <colorspace_fragment>
-      }`,
-  }));
-  world.add(sky);
-  const benchBackground=new THREE.Color(0x0b131a);
-  const field=new THREE.Group(), bench=new THREE.Group();
-  world.add(field,bench);
-  const ambient=new THREE.HemisphereLight(0xdae5ea,0x7c5546,1.1);
-  const sun=new THREE.DirectionalLight(0xffd8aa,2.9);
-  sun.position.set(-13,9,-9);
-  const fill=new THREE.DirectionalLight(0x93c5d9,1.65);
-  fill.position.set(6,5,8);
-  world.add(ambient,sun,fill);
-  const camera=new THREE.PerspectiveCamera(45,1,.1,165);
+  const sky=terrain.atmosphere;
+  const benchBackground=new THREE.Color(0x090f1c);
+  const field=terrain.group, bench=new THREE.Group();
+  world.add(bench);
+  renderer.shadowMap.enabled=true;
+  renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  const benchLight=new THREE.DirectionalLight(0xc1e8f2,1.6);
+  benchLight.position.set(4,5,-5);
+  world.add(benchLight);
+  const camera=new THREE.PerspectiveCamera(45,1,.1,500);
   const controls=new OrbitControls(camera,renderer.domElement);
   controls.enablePan=false;
   controls.enableDamping=true;
   controls.maxPolarAngle=Math.PI*.49;
   controls.minPolarAngle=.2;
-  const surface=new THREE.PlaneGeometry(142,142,160,160);
-  surface.rotateX(-Math.PI/2);
-  const verts=surface.getAttribute('position');
-  const colors:number[]=[];
-  const lightDust=new THREE.Color(0xaf755b), rockDust=new THREE.Color(0x704538);
-  for(let i=0;i<verts.count;i++) {
-    const x=verts.getX(i),z=verts.getZ(i);
-    verts.setY(i,height(x,z));
-    const mix=Math.min(1,Math.max(0,.51+.23*Math.sin(x*.6+z*.2)*Math.cos(z*.42)
-      +.14*Math.sin(x*3.64+z*2.14)+.1*Math.sin(i*243.51)));
-    const color=rockDust.clone().lerp(lightDust,mix);
-    colors.push(color.r,color.g,color.b);
+  addSurveyLandmarks(field,height);
+  const flight=loadFlight();
+  if(flight.phase==='surface'){
+    const craft=createShip();craft.ship.scale.setScalar(1.5);onGround(craft.ship,flight.x,flight.z);craft.ship.position.y+=.12;
+    craft.ship.rotation.y=-flight.heading;craft.hatch.rotation.x=-Math.PI/2;craft.interior.visible=false;
+    for(const jet of [...craft.jets,...craft.downJets])jet.visible=false;
+    field.add(craft.ship);
   }
-  surface.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
-  surface.computeVertexNormals();
-  const grain=document.createElement('canvas');
-  grain.width=grain.height=128;
-  const brush=grain.getContext('2d')!;
-  const noise=brush.createImageData(128,128);
-  for(let i=0;i<noise.data.length;i+=4){
-    const value=95+(Math.sin(i*253.1)*.5+.5)*65+(Math.sin(i*.037)*.5+.5)*50;
-    noise.data[i]=noise.data[i+1]=noise.data[i+2]=value;
-    noise.data[i+3]=255;
-  }
-  brush.putImageData(noise,0,0);
-  const surfaceGrain=new THREE.CanvasTexture(grain);
-  surfaceGrain.wrapS=surfaceGrain.wrapT=THREE.RepeatWrapping;
-  surfaceGrain.repeat.set(83,83);
-  field.add(new THREE.Mesh(surface,new THREE.MeshStandardMaterial({
-    vertexColors:true,roughness:1,bumpMap:surfaceGrain,bumpScale:.09,
-  })));
-  const boulderGeometry=new THREE.IcosahedronGeometry(1,1);
-  const boulders = new THREE.InstancedMesh(boulderGeometry,rock,230);
-  const dummy = new THREE.Object3D();
-  let stoneCount=0;
-  for(let i=0;i<230;i++){
-    const x=62*Math.sin(i*237.1),z=62*Math.cos(i*719.13);
-    const near=Math.abs(x)<20&&Math.abs(z)<20;
-    if(near&&Math.hypot(x-10,z+10)<6)continue;
-    const size=near?.13+(i%9)*.078:.62+(i%17)*.31;
-    dummy.scale.set(size*(1.4+i%3*.26),size*.43,size*(1+i%5*.12));
-    dummy.rotation.set(i,i*.77,0);
-    dummy.position.set(x,height(x,z)-size*.09,z);
-    dummy.updateMatrix();
-    boulders.setMatrixAt(stoneCount,dummy.matrix);
-    boulders.setColorAt(stoneCount,new THREE.Color().setHSL(.045+(i%7)*.009,.25+(i%4)*.058,.44+(i%7)*.034));
-    stoneCount++;
-  }
-  boulders.count=stoneCount;
-  field.add(boulders);
-  const [spires,tracks]=missionSite.landmarks;
-  for(const [dx,h] of [[-1,4.2],[.9,2.9]]){
-    for(let i=0;i<4;i++){
-      const spire=new THREE.Mesh(boulderGeometry,rock);
-      const width=(1-i*.185)*(1.1+(dx>0?.1:0));
-      spire.scale.set(width,h*.29,width*.89);
-      spire.position.set(spires.position[0]+dx+i*.125,height(...spires.position)+h*(.15+i*.2),spires.position[1]+i*.14);
-      spire.rotation.set(i*.44,.7+i*.49,-.15);
-      field.add(spire);
-    }
-  }
-  for(let i=0;i<14;i++){
-    const x=tracks.position[0]+Math.sin(i*.22)*1.25,z=tracks.position[1]+1-i*.48;
-    for(const dx of [-.55,.55]){
-      const track=box(.31,.014,.12,rock,x+dx,height(x+dx,z)+.025,z);
-      track.rotation.y=-i*.04;
-      field.add(track);
-    }
-  }
+  const waypoint=new THREE.Mesh(new THREE.RingGeometry(1.35,1.43,48),new THREE.MeshBasicMaterial({color:0x91e6e7,side:THREE.DoubleSide,transparent:true,opacity:.8}));
+  waypoint.rotation.x=-Math.PI/2;field.add(waypoint);
   const shelter=new THREE.Group();
   shelter.add(rounded([2,.83,1.5],.13,suitDark,[0,.49,0]),rounded([2.15,.13,1.62],.045,white,[0,.936,0]),
     rounded([.52,.55,.11],.045,amber,[0,.47,-.77]),barrel(.084,.23,amber,[.7,1.05,.31]),
@@ -145,7 +69,7 @@ export function createStoryScene(host:HTMLElement, actions:SceneActions, hardwar
   field.add(shelter);
 
   const astra=createAstra();
-  astra.model.rotation.y=-.32;
+  astra.model.rotation.y=Math.PI+.35;
   field.add(astra.model);
   const shadow=new THREE.Mesh(new THREE.CircleGeometry(.65,26),new THREE.MeshBasicMaterial({color:0x1d1411,opacity:.3,transparent:true,depthWrite:false}));
   shadow.scale.set(1.2,.78,1);
@@ -154,9 +78,11 @@ export function createStoryScene(host:HTMLElement, actions:SceneActions, hardwar
   const wreck=hardware.frame();
   onGround(wreck,...missionSite.wreck);
   wreck.rotation.set(.06,-.49,-.12);
+  paintModel(wreck,1.3);
   field.add(wreck);
   const fieldParts = missionSite.parts.map(part=>{
     const object=hardware.part(part.id);
+    paintModel(object,1.3);
     const disk=new THREE.Mesh(new THREE.RingGeometry(.63,.7,24),cyan);
     disk.rotation.x=-Math.PI/2;
     disk.position.y=.035;
@@ -173,6 +99,7 @@ export function createStoryScene(host:HTMLElement, actions:SceneActions, hardwar
   field.add(pulse);
   let pulseAt=-Infinity, pickupAt=-Infinity, picked:PartId|null=null, placed:PartId|null=null, fitAt=-Infinity, completeAt=-Infinity;
   const baseFrame=hardware.frame();
+  paintModel(baseFrame,1.3);
   const plinth=rounded([7,.19,4.5],.065,metal(0x1e2d34),[0,-.135,0]);
   const grid=new THREE.GridHelper(7,18,0x5c8995,0x324754);
   grid.position.y=-.033;
@@ -191,6 +118,7 @@ export function createStoryScene(host:HTMLElement, actions:SceneActions, hardwar
   };
   const components=missionSite.parts.map(part=>{
     const object=hardware.part(part.id);
+    paintModel(object,1.3);
     object.userData.part=part.id;
     const mountSize=part.id==='solar'?[1.06,.11,.48] as const:part.id==='camera'?[.27,.17,.27] as const:[.26,.28,.32] as const;
     const mount=new THREE.Mesh(new THREE.BoxGeometry(...mountSize),mountColor);
@@ -215,13 +143,13 @@ export function createStoryScene(host:HTMLElement, actions:SceneActions, hardwar
   const nextPos=new THREE.Vector3();
   function resetView(next:string) {
     if(next==='bench'){
-      controls.minDistance=2.6;controls.maxDistance=17;
+      controls.minDistance=2.6;controls.maxDistance=Math.max(17,fitViewScale*12);
       controls.target.set(0,.8,0);
       camera.position.copy(controls.target).add(new THREE.Vector3(4.4,3.6,-5.2).multiplyScalar(fitViewScale));
     }else if(next==='preview'){
       controls.minDistance=8;controls.maxDistance=73;
-      controls.target.set(-3,0,3);
-      camera.position.copy(controls.target).add(new THREE.Vector3(16,27,26).multiplyScalar(fitViewScale));
+      controls.target.copy(astra.model.position).add(new THREE.Vector3(0,1.6,0));
+      camera.position.copy(controls.target).add(new THREE.Vector3(4.5,1.9,8.5));
     }else if(next==='cutscene'){
       controls.minDistance=3;controls.maxDistance=18;
       const [x,z]=missionSite.wreck;
@@ -230,8 +158,8 @@ export function createStoryScene(host:HTMLElement, actions:SceneActions, hardwar
       camera.position.copy(controls.target).add(cutOffset);
     }else{
       controls.minDistance=3;controls.maxDistance=35;
-      controls.target.copy(astra.model.position).add(new THREE.Vector3(0,1.09,0));
-      camera.position.copy(controls.target).add(new THREE.Vector3(4.3,2.6,7.7).multiplyScalar(Math.min(fitViewScale,1.18)));
+      controls.target.copy(astra.model.position).add(new THREE.Vector3(0,1.6,0));
+      camera.position.copy(controls.target).add(new THREE.Vector3(3.8,1.9,7.8).multiplyScalar(Math.min(fitViewScale,1.18)));
     }
     controls.update();
   }
@@ -242,9 +170,11 @@ export function createStoryScene(host:HTMLElement, actions:SceneActions, hardwar
     actions.frame(seconds);
     if(state){
       const {save,selection,angle,cutscene}=state;
+      waypoint.visible=Boolean(state.waypoint)&&save.phase==='recover';
+      if(state.waypoint){waypoint.position.set(state.waypoint.x,height(state.waypoint.x,state.waypoint.z)+.06,state.waypoint.z);waypoint.scale.setScalar(Math.max(1,state.waypoint.uncertainty/1.4));}
       const nextMode=cutscene?'cutscene':save.phase==='briefing'?'preview':save.phase==='assemble'||save.phase==='complete'?'bench':'field';
       const moved=Math.hypot(save.x-priorX,save.z-priorZ);
-      if(moved>.003)astra.model.rotation.y=Math.atan2(priorX-save.x,priorZ-save.z);
+      if(mode&&moved>.003)astra.model.rotation.y=Math.atan2(priorX-save.x,priorZ-save.z);
       priorX=save.x;priorZ=save.z;
       onGround(astra.model,save.x,save.z);
       shadow.position.set(save.x,astra.model.position.y+.018,save.z);
@@ -261,9 +191,9 @@ export function createStoryScene(host:HTMLElement, actions:SceneActions, hardwar
       const scanned=(now-pulseAt)/750, collected=(now-pickupAt)/530, fitted=(now-fitAt)/620;
       const poseAmount=(age:number)=>reduced.matches||age<0||age>1?0:Math.sin(age*Math.PI);
       astra.pose(now/1000, moved>.003&&!reduced.matches&&mode==='field',
-        collected<1?'pickup':scanned<1||cutscene?'scan':'idle',
+        collected<1?'pickup':scanned<1||cutscene?'scan':now<state.talkUntil?'talk':'idle',
         collected<1?poseAmount(collected):cutscene&&!reduced.matches?.7:poseAmount(scanned));
-      benchAstra.pose(now/1000,false,'assemble',poseAmount(fitted));
+      benchAstra.pose(now/1000,false,fitted<1?'assemble':now<state.talkUntil?'talk':'idle',poseAmount(fitted));
       field.visible=mode!=='bench';
       sky.visible=field.visible;
       bench.visible=mode==='bench';
@@ -271,7 +201,7 @@ export function createStoryScene(host:HTMLElement, actions:SceneActions, hardwar
       world.fog=bench.visible?null:dust;
       wreck.visible=cutscene||save.phase==='recover';
       if(mode==='field'){
-        target.copy(astra.model.position).add(new THREE.Vector3(0,1.09,0));
+        target.copy(astra.model.position).add(new THREE.Vector3(0,1.6,0));
         camera.position.add(nextPos.copy(target).sub(controls.target));
         controls.target.copy(target);
       }
@@ -296,7 +226,9 @@ export function createStoryScene(host:HTMLElement, actions:SceneActions, hardwar
       for(const {part,object,mount,beacon} of components){
         const fitted=save.fitted.includes(part.id);
         object.position.copy(dragPoint&&pointerPart===part.id?dragPoint:exploded[part.id]);
-        object.rotation.y=(fitted?part.angle:selection===part.id?angle:0)*Math.PI/180;
+        const targetAngle=(fitted?part.angle:selection===part.id?angle:0)*Math.PI/180;
+        const angleDelta=Math.atan2(Math.sin(targetAngle-object.rotation.y),Math.cos(targetAngle-object.rotation.y));
+        object.rotation.y=reduced.matches?targetAngle:THREE.MathUtils.damp(object.rotation.y,object.rotation.y+angleDelta,14,seconds);
         if(fitted){
           const age=reduced.matches||placed!==part.id?1:Math.min(1,(now-fitAt)/480);
           object.position.lerp(nextPos.set(part.contact[0],part.contact[1],part.contact[2]),1-(1-age)**3);
@@ -319,7 +251,9 @@ export function createStoryScene(host:HTMLElement, actions:SceneActions, hardwar
     renderer.setSize(w,h,false);
     const old=fitViewScale;
     camera.aspect=w/h;
-    fitViewScale=Math.max(1,1.02/camera.aspect);
+    if(w<=900&&document.querySelector('#detail-drawer[open]'))camera.setViewOffset(w,h,0,h*.22,w,h);
+    else camera.clearViewOffset();
+    fitViewScale=Math.max(1,1.1/camera.aspect);
     if(mode==='bench'||mode==='preview'){
       camera.position.sub(controls.target).multiplyScalar(fitViewScale/old).add(controls.target);
       controls.update();
@@ -328,6 +262,8 @@ export function createStoryScene(host:HTMLElement, actions:SceneActions, hardwar
   }
   const observer=new ResizeObserver(resize);
   observer.observe(host);
+  const drawer=document.querySelector('#detail-drawer');
+  if(drawer)new MutationObserver(resize).observe(drawer,{attributes:true,attributeFilter:['open']});
   resize();
   animation=requestAnimationFrame(render);
 

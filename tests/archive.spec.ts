@@ -9,7 +9,7 @@ const approved = new Set([
 
 test('Explore opens two choices and the atlas is available before playing', async ({ page, isMobile }) => {
   await page.goto('./');
-  await expect(page.getByRole('heading',{name:'>_signal',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'The silence has a signal.',exact:true})).toBeVisible();
   const explore = page.getByRole('button',{name:'Explore',exact:true});
   if (isMobile) await explore.tap();
   else await explore.press('ArrowDown');
@@ -18,7 +18,9 @@ test('Explore opens two choices and the atlas is available before playing', asyn
   if (isMobile) await choices.first().tap();
   else await choices.first().press('Enter');
   await expect(page).toHaveURL(/omnecarta\/$/);
-  await page.getByRole('main').getByRole('link',{name:/^Moon Earth/}).click();
+  await expect(page.locator('#orbital-space.view-ready canvas')).toBeVisible();
+  await page.locator('[data-world="moon"]').click();
+  await page.getByRole('link',{name:'Approach Moon'}).click();
   await expect(page.getByRole('heading',{name:'Moon',exact:true})).toBeVisible();
   await page.getByRole('link',{name:'Mars',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Mars',exact:true})).toBeVisible();
@@ -88,6 +90,7 @@ test('rover model rotation, part highlight, and approved links', async ({page,is
     await expect(page.locator('.model-canvas')).toHaveAttribute('data-highlighted',key);
     await expect(page.locator('#component-detail')).toContainText(detail);
     if(isMobile) await page.getByRole('button',{name:'Close details'}).tap();
+    await page.getByRole('button',{name:'Mission record',exact:true}).click();
     const media = page.locator('.evidence img').first();
     await media.scrollIntoViewIfNeeded();
     await expect.poll(()=>media.evaluate((img:HTMLImageElement)=>img.naturalWidth)).toBeGreaterThan(0);
@@ -104,6 +107,7 @@ test('the matching fallback remains available if the 3D model cannot load', asyn
   await expect(page.getByText(/3D unavailable/)).toBeVisible();
   await expect(page.locator('.model-fallback img')).toBeVisible();
   await expect.poll(()=>page.locator('.model-fallback img').evaluate((img:HTMLImageElement)=>img.naturalWidth)).toBeGreaterThan(0);
+  await page.getByRole('button',{name:'Mission record',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Mission timeline'})).toBeVisible();
 });
 

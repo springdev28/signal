@@ -4,7 +4,7 @@ const origin=process.env.OMNECARTA_TEST_URL ?? 'http://127.0.0.1:4173'+base+'/';
 export default defineConfig({
   testDir:'./tests',
   timeout:45000,
-  use:{baseURL:origin, trace:'retain-on-failure', launchOptions:{
+  use:{baseURL:origin, trace:{mode:'retain-on-failure',screenshots:false}, launchOptions:{
     ...(process.env.OMNECARTA_CHROME ? {executablePath:process.env.OMNECARTA_CHROME} : {}),
     args:['--enable-unsafe-swiftshader'],
   }},

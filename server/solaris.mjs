@@ -3,7 +3,7 @@ import { sources } from '../src/references.mjs';
 
 const model = '@cf/mistralai/mistral-small-3.1-24b-instruct';
 const views = new Set(['home','atlas','moon','mars','compare','opportunity','lunar','experiment','story','collection']);
-const phases = new Set(['briefing','search','locate','recover','assemble','complete']);
+const phases = new Set(['briefing','search','locate','recover','assemble','complete','flight-briefing','flight-survey','flight-approach','flight-landing','flight-landed','flight-exit']);
 const parts = new Set(['camera','solar','wheel']);
 const perClient = new Map();
 const oneMinute = 60_000;
@@ -42,19 +42,29 @@ function snapshot(value) {
   if (!value || !phases.has(value.phase)) return null;
   return {
     phase: value.phase,
-    observed: Array.isArray(value.observed) ? [...new Set(value.observed.filter(x => x === 0 || x === 1))] : [],
+    observed: Array.isArray(value.observed) ? [...new Set(value.observed.filter(x => x === 0 || x === 1 || (x===2&&value.phase.startsWith('flight-'))))] : [],
     collected: Array.isArray(value.collected) ? [...new Set(value.collected.filter(x => parts.has(x)))] : [],
     fitted: Array.isArray(value.fitted) ? [...new Set(value.fitted.filter(x => parts.has(x)))] : [],
     attempts: Number.isInteger(value.attempts) ? Math.max(0,Math.min(30,value.attempts)) : 0,
     hints: Number.isInteger(value.hints) ? Math.max(0,Math.min(30,value.hints)) : 0,
     selection: parts.has(value.selection) ? value.selection : undefined,
     cutscene: value.cutscene === true,
+    ...(value.phase.startsWith('flight-')&&value.flight?{flight:{
+      altitude:Number.isFinite(value.flight.altitude)?Math.max(0,Math.min(80,value.flight.altitude)):0,
+      records:Array.isArray(value.flight.records)?value.flight.records.filter(r=>parts.has(r?.id)).slice(0,3).map(r=>({id:r.id,samples:Number.isInteger(r.samples)?Math.max(0,Math.min(36,r.samples)):0,uncertainty:Number.isFinite(r.uncertainty)?Math.max(0,Math.min(100,r.uncertainty)):100,locked:r.locked===true})):[],
+    }}:{}),
   };
 }
 
 function missionNotes(state) {
   if (!state) return '';
   const lines = {
+    'flight-briefing':'Read the fictional recovered spacecraft downlink. Optics points north of the tracks, Power east of the mast, Drive just north of the bend in the tracks. Take the controls to test those clues.',
+    'flight-survey':'Select a recovered record. Fly using steering and throttle; take at least three scans from positions at least 8 m apart. Wider bearing angles tighten uncertainty. Lock each contact at 5 m uncertainty or less. Repeated stationary scans do not improve a fix. Never reveal precise hidden part coordinates before the player locks them.',
+    'flight-approach':'All locks travel with the ship. Land within 8 m of the clear zone, below 32 m altitude and at 30% throttle or less. The approach guide is optional.',
+    'flight-landing':'Stabilize the descent. Retry or use untimed input if needed. Touchdown opens the hatch.',
+    'flight-landed':'Wait for the hatch to open, then step outside as Astra. Retained locks become surface waypoints.',
+    'flight-exit':'Astra is stepping outside. Follow the locked waypoints on foot to recover parts.',
     briefing: 'Invite Astra to start. Move with WASD, arrow keys or direction buttons.',
     search: 'Take one scan near each of the Twin spires (8 m west, 4 m north) and Wheel tracks (5 m east, 4 m south).',
     locate: 'Use the bearing and distance. Scan within 2.45 m of the wreck at 10 m east, 10 m north.',
@@ -62,7 +72,7 @@ function missionNotes(state) {
     assemble: 'Camera: Mast at 0°, lenses facing front. Solar: Deck at 90°, align the rail. Wheel: Right axle at 180°, hub outward.',
     complete: 'Open My Collection to inspect the reconstructed craft or replay. Exhibits are always available.',
   };
-  return `Odyssey is fictional. Read-only progress: ${JSON.stringify(state)}. Relevant directions: ${state.cutscene ? 'Stabilize the scanner. Retry if it expired, or choose untimed input.' : lines[state.phase]} Start with one short clue. Give coordinates or orientation on repeat requests or after repeated misses.`;
+  return `Odyssey is fictional. Read-only progress: ${JSON.stringify(state)}. Relevant directions: ${state.cutscene&&!state.phase.startsWith('flight-') ? 'Stabilize the scanner. Retry if it expired, or choose untimed input.' : lines[state.phase]} Start with one short clue. Give assembly orientation on repeat requests or after repeated misses.`;
 }
 
 const selectionIds = new Set(['apollo15','eagle','camera','solar','wheel','arm','seats','antenna','equipment']);

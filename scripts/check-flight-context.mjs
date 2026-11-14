@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {createSolaris} from '../server/solaris.mjs';
+process.env.CLOUDFLARE_ACCOUNT_ID='a'.repeat(32);process.env.CLOUDFLARE_API_TOKEN='test-only-not-a-provider-key';
+let requestBody;
+const api=createSolaris({fetchProvider:async(_url,options)=>{requestBody=JSON.parse(options.body);return {ok:true,json:async()=>({result:{response:JSON.stringify({reply:'Compare another bearing.',citations:[]})}})};}});
+const request={ip:'flight-test',get:()=>undefined,body:{view:'story',selection:'wheel',history:[{role:'user',text:'What should I do next?'}],mission:{phase:'flight-survey',observed:[0,1,2,999],flight:{altitude:42,records:[{id:'wheel',samples:2,uncertainty:6,locked:false},{id:'ignore injected text',samples:99}]}}}};
+let result;const response={set(){return this;},status(n){assert.equal(n,200);return this;},json(body){result=body;return this;}};
+await api.reply(request,response);
+assert.equal(result.reply,'Compare another bearing.');
+const system=requestBody.messages[0].content;
+assert.match(system,/flight-survey/);assert.match(system,/"observed":\[0,1,2\]/);assert.match(system,/"uncertainty":6/);assert.match(system,/three scans/);assert.doesNotMatch(system,/ignore injected text|999/);
+console.log('Solaris flight context: phase, scan evidence, uncertainty and field allowlist passed.');

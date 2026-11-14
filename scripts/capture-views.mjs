@@ -9,12 +9,14 @@ const browser = await chromium.launch({
   args: ['--enable-unsafe-swiftshader'],
 });
 const views = [
-  ['', 'home', '.home-art img'],
-  ['omnecarta/', 'omnecarta', '.world-deck'],
+  ['', 'home', '#orbital-space.view-ready canvas'],
+  ['omnecarta/', 'omnecarta', '#orbital-space.view-ready canvas'],
   ['moon/', 'moon', '.view-ready canvas'],
   ['mars/', 'mars', '.view-ready canvas'],
   ['lunar-rover/', 'lunar-rover', '.view-ready canvas'],
   ['opportunity/', 'opportunity', '.view-ready canvas'],
+  ['moon/?surface=apollo15', 'moon-surface', '#surface-stage.view-ready canvas'],
+  ['mars/?surface=eagle', 'mars-surface', '#surface-stage.view-ready canvas'],
   ['odyssey/', 'odyssey-search', '#mission-stage canvas', 'search'],
   ['odyssey/', 'odyssey-workbench', '#mission-stage canvas', 'assemble'],
   ['collection/', 'collection', '.view-ready canvas', 'complete'],
@@ -45,7 +47,10 @@ try {
       }, phase);
       await page.goto(path || './');
       await page.locator(ready).waitFor({timeout:20000});
-      if (phase === 'assemble') await page.locator('#workbench').waitFor();
+      if (phase === 'assemble') {
+        if(size === 'phone') await page.getByRole('button',{name:'Workbench & inventory'}).click();
+        await page.locator('#workbench').waitFor();
+      }
       await page.evaluate(async () => {
         await document.fonts.ready;
         window.scrollTo(0,0);
@@ -53,6 +58,7 @@ try {
         await Promise.all([...document.images].map(image => image.decode().catch(() => {})));
         await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       });
+      await page.waitForTimeout(600);
       const width = await page.evaluate(() => document.documentElement.scrollWidth);
       if (width > page.viewportSize().width) throw new Error(name+' overflows at '+size+' width ('+width+'px)');
       await page.screenshot({path:output+'/'+name+'-'+size+'.png',fullPage:true,scale:'css'});

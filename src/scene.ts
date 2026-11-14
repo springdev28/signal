@@ -29,11 +29,15 @@ export function mountViewport(
     const { clientWidth: width, clientHeight: height } = host;
     if (!width || !height) return;
     camera.aspect = width / height;
+    if(width<=900&&document.querySelector('#detail-drawer[open]')) camera.setViewOffset(width,height,0,height*.23,width,height);
+    else camera.clearViewOffset();
     camera.updateProjectionMatrix();
     renderer.setSize(width, height, false);
     onResize();
   };
   new ResizeObserver(resize).observe(host);
+  const drawer=document.querySelector('#detail-drawer');
+  if(drawer)new MutationObserver(resize).observe(drawer,{attributes:true,attributeFilter:['open']});
   resize();
   return renderer;
 }

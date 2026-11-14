@@ -1,63 +1,37 @@
-# Visual style and layout
+# Visual specification
 
-Companion to the [project brief](https://docs.google.com/document/d/17GIOaAQ1eIh2GBGRJg3RehkcSRpO8ScoTxvV-g6ppIo). The shared interface values live in `src/tokens.css`; responsive rules live in `src/style.css` and `src/story.css`.
+Companion to the [live project brief](https://docs.google.com/document/d/17GIOaAQ1eIh2GBGRJg3RehkcSRpO8ScoTxvV-g6ppIo). The supplied cockpit reference and Bahar’s Astra sketch remain authoritative. Preserve the full-screen simulation, flight/radar sequence, and concurrent implementation work. `src/simulation.css` owns scene composition; `src/tech-interface.css` defines the shared technical interface, typography, palette, and restrained Arcane material accents.
 
->_signal feels like a quiet observatory: a spacious 3D stage, restrained instrument panels, and clear readings. Use this shared visual system across the homepage, Omnecarta, Odyssey, and Solaris. Each panel must support a decision, an action, or understanding of the subject.
+Use the supplied celestial illustration as an aesthetic reference for the live 3D experience: gold illumination, deep teal shadows, luminous edges, ink-like shading, and layered stars. Apply those qualities to rendered worlds, materials, lighting, and spatial effects; do not turn the reference into a static wallpaper. Keep the technical spacecraft interface precise and readable around the scene, using the supplied cockpit screenshot for instrument hierarchy. Preserve original >_signal art and NASA equipment silhouettes and identifying details.
 
 ## Art direction
 
-Keep Astra’s sketch silhouette consistent in the portrait and 3D model. Use pale ceramic binocular housings, a teal drape, dark mechanical joints, small brass details, and restrained cyan lens lights. Solaris uses one abstract signal icon and caption/chat treatment; Astra remains the playable character.
+Carry the Arcane influence through painted material detail, stepped light values, expressive silhouettes, and strong directional lighting. Celestial surfaces retain their craters and identifying textures while receiving warm light, teal shadow tones, and fine luminous rims. Place stars at different depths and render drifting nebula forms in world space so camera motion reveals depth. In the cockpit, use cold instruments on worn metal; lunar terrain remains silver rock, and Mars uses burnt ochre dust and cool shadows. Keep a clear foreground, subject, and distant environment.
 
-Render fictional Odyssey terrain with simplified rock forms, matte surfaces, warm rust and ochre on Mars, and readable silhouettes. Keep Moon imagery neutral gray. Preserve the proportions and provenance of scientific artifact models and NASA images. Label fictional recovery scenes and explanatory illustrations; do not present them as mission photography.
+Stage Solaris dialogue and landing as short in-engine scenes. Animate Astra’s lens focus, neck tilt, and silhouette before the first movement on foot. Give the hatch and touchdown weight through timing and camera framing. Use hand-painted dust and thruster effects sparingly so they guide the eye. Keep player control during flight and scanning, and restore it at the end of each scene.
 
-## Interface palette
+## Palette and typography
 
-Colors describe interface meaning across both modes. Natural terrain and source imagery retain their own colors. Neutral dividers separate content; the stronger border identifies control edges. Use dark ink (#080C10) on cyan-filled buttons.
+Canvas #061019; translucent instrument panels #0A1924ED; raised controls #102735. Use primary text #DEEBF2 and secondary text #A2B9C5. Dark blue-black surfaces and fine framing give the interface the feel of a working spacecraft console while leaving the simulated world visible.
 
-| Role | Color | Use |
-| --- | --- | --- |
-| Page | #090D11 | Background behind the interface |
-| Panel | #0D141A | Objective, facts, captions, and dialogs |
-| Raised surface | #131F27 | Inputs and secondary controls |
-| Primary text | #E7EDF0 | Headings and readable body copy |
-| Secondary text | #A0B1BA | Supporting labels and chart axes |
-| Interactive | #89E0E4 | Primary actions, selection, and focus |
-| Emphasis | #A9EEF0 | Hover and highlighted readings |
-| Warning | #EFBA78 | Actionable warnings with an explanation |
-| Control border | #526B78 | Visible control boundaries |
-| Divider | #273B46 | Non-interactive separators and plot grids |
-| Landmark | #B8C6CF | Neutral map markers with letter labels |
+Use electric cyan #63D7E8 for interaction, focus, and selection; pale cyan #B9F3FB for emphasis; and amber #E9AF64 for actionable warnings. Brass #BC9566 accents frame corners and Solaris details. Use warm gold #F0CE89 and ivory #FFF0D2 for celestial illumination and scene identification. Fine borders use #375B6D and dividers #203B4A. Stylized lighting must preserve recognizable geography; NASA evidence images retain their original colors.
 
-## Typography and geometry
+Use Barlow Condensed 600 for scene titles and cinematic dialogue headings, Inter for prose, navigation, and action labels, and IBM Plex Mono 500 for the wordmark, instrument headings, coordinates, and numeric readings. Keep instrument labels compact, use uppercase sparingly for identification, and align numerical readings with tabular digits. Reading text is around 14 px; essential controls and readings stay at least 13 px. Prose uses roughly 1.5 line spacing.
 
-Use Barlow Condensed 600 for the wordmark and large page titles, Inter 400/600 for text and controls, and IBM Plex Mono 500 for coordinates, units, and chart readings. Set body text at 16 px, compact panel text and controls at 14 px, and supporting labels at 13 px minimum. Let titles scale with screen width. Use 1.5–1.65 line spacing for prose and allow labels to wrap.
+## Panels, controls, and feedback
 
-Use a 4 px spacing unit: 4–8 px between related controls, 12–16 px panel padding and gaps, and 24–32 px between sections. Use 1 px borders and a 2 px control radius. Buttons and camera controls have at least a 44 × 44 px target. Keep display type out of dense tables and paragraphs.
+Use compact instrument panels with 1 px rules, 2 px corners, subtle metal shading, and small brass and cyan corner marks. Keep the framing crisp around the painterly 3D scene. Panel headings form clear instrument strips; component selectors use consistent icons and names. Primary actions use cyan with dark text, secondary controls are dark and outlined, and selected rows add a cyan edge and an explicit checkmark. Keep button targets at least 44 × 44 px and consistent internal spacing. Decorative framing must not imply invented readings or obscure the subject.
 
-## Screen composition
+Selected components show a checkmark, a matching model highlight, and one label connected to the selected part. Keep the annotation clear of camera controls. Show Collected and Fitted as explicit text states. Warnings explain the required action. Charts plot actual values with units, a legend, and a text reading; omit invented telemetry.
 
-- Homepage: a darkened horizon behind the introduction, Astra beside it, and one Explore menu containing Omni-View and Odyssey. Keep the subject and text in separate layout columns; stack them on phones. The shared header contains My Collection and Solaris.
+## Composition at each size
 
-- Omnecarta: the Moon and Mars choices lead to the world guides. World and artifact views use a title row, a central 3D viewport, and a separate camera-control row. Place facts or component details in the right rail. Timeline, evidence, and comparison content sit below or outside the viewport.
+Use the full browser as the simulation interface, with a clear central view and compact translucent instruments around its edges. Group radar, flight controls, and the current contact in the cockpit. After landing, keep Astra and the terrain unobstructed; at the workbench, exchange navigation instruments for clues, inventory, and fit controls. Omnecarta uses the same instrument language around the artifact, with mission evidence available below.
 
-- Odyssey: objective and clues on the left, the terrain or workbench in the center, and map/scanner or assembly tools on the right. Put camera controls above the canvas and Solaris captions below it in normal document flow. Movement and contextual actions follow the caption. Change the active tools with the mission phase.
+At 900 px and below, keep the active scene full-screen and collapse secondary instruments into drawers. Reserve non-overlapping areas for the objective, camera, movement or flight controls, current action, and captions. Reposition controls around the subject and keep long supporting information in scrollable panels. Use a compact header; icon controls retain accessible names. Keep the selected contact or part visible when an instrument opens.
 
-- My Collection: reuse the exhibit frame and component vocabulary. Show only completed recoveries. Public browsing, selected parts, collected parts, and fitted parts are separate states.
+Keep one Solaris entry point, including inside a task drawer or dialog. Opening Solaris temporarily hides the underlying dialog; closing it restores the dialog and focus. Wrap long text and controls, let drawers scroll internally, and prevent horizontal overflow. At enlarged text sizes, allow vertical reflow instead of clipping.
 
-## Responsive layout and layering
+## Character, imagery, and motion
 
-At 1200 px and above, Odyssey uses three columns. At 901–1199 px, move its objective above the scene and retain one tool rail. At 900 px and below, stack mission tools below the scene with Map & scanner and Back to controls links. Omnecarta uses a single details drawer at these widths. At 620 px and below, place the brand and Solaris on the first header row and navigation on the second.
-
-Reserve space for captions, camera controls, and navigation. Never position them over the scene’s interactive area. Menus and dialogs are intentional overlays: they must stay within the viewport and scroll internally when needed. Opening Solaris hides any underlying task dialog, pauses timed actions, and restores that dialog and focus when closed. Keep one Solaris entry point; move it into the active task dialog when needed.
-
-Use flexible grid tracks and wrapping controls. Keep the page free of horizontal scrolling at 320 px width and with enlarged text. Size chart labels in CSS pixels, redraw charts when their container changes, and reduce tick density before shrinking type. Keep units, legends, and a readable numeric or text alternative.
-
-## States, feedback, and motion
-
-Use cyan fill for the primary action, a bordered dark surface for secondary actions, and an underlined text link for navigation. Selected components show a checkmark and matching model highlight. Collected and Fitted use explicit labels; warnings use amber plus an explanation. Provide visible keyboard focus, disabled, loading, unavailable, and empty states using the same components in every mode.
-
-Use 160 ms color transitions for controls. Scan, pickup, fitting, and reconstruction motion must show an actual state change. Respect reduced motion, preserve captions, and provide untimed actions. Avoid decorative telemetry, flashing backgrounds, or repeated status tags.
-
-## Internal layout reference
-
-The screenshot retained in the project brief is an internal mood and composition reference. The palette, type, spacing, responsive rules, and original >_signal components defined above govern implementation. Do not reproduce its dense labels, third-party branding, or unrelated graphics.
+Build original 3D meshes for Astra, the ship and cockpit, the terrain, and inspectable spacecraft and parts. Give them painterly surface textures, deliberate silhouettes, and directional lighting. Rig Astra’s lenses, neck, drape, and cable for expressive acting. Keep fictional reconstruction distinct from NASA evidence and place source credits alongside the factual content.

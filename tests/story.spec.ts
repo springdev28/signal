@@ -18,6 +18,7 @@ async function moveTo(page:Page, x:number, z:number, touch:boolean){
       const difference=target-point[axis];
       if(Math.abs(difference)<=1)break;
       const direction:Direction=axis===0?(difference>0?'east':'west'):(difference>0?'south':'north');
+      const remaining=async()=>difference>0?target-(await location(page))[axis]:(await location(page))[axis]-target;
       if(touch){
         const button=page.getByRole('button',{name:'Move '+direction,exact:true});
         await button.scrollIntoViewIfNeeded();
@@ -25,13 +26,12 @@ async function moveTo(page:Page, x:number, z:number, touch:boolean){
         const finger={x:bounds.x+bounds.width/2,y:bounds.y+bounds.height/2};
         const cdp=await page.context().newCDPSession(page);
         await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[finger]});
-        await expect.poll(async()=>Math.abs(target-(await location(page))[axis]),{timeout:6000,intervals:[45]}).toBeLessThanOrEqual(1);
-        await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
-        await cdp.detach();
+        try{await expect.poll(remaining,{timeout:6000,intervals:[45]}).toBeLessThanOrEqual(1);}
+        finally{await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await cdp.detach();}
       }else{
         await page.keyboard.down(keys[direction]);
-        await expect.poll(async()=>Math.abs(target-(await location(page))[axis]),{timeout:6000,intervals:[45]}).toBeLessThanOrEqual(1);
-        await page.keyboard.up(keys[direction]);
+        try{await expect.poll(remaining,{timeout:6000,intervals:[45]}).toBeLessThanOrEqual(1);}
+        finally{await page.keyboard.up(keys[direction]);}
       }
     }
     expect(Math.abs(target-(await location(page))[axis])).toBeLessThanOrEqual(1);
@@ -50,6 +50,9 @@ test('finish the story with movement, recovery, and assembly',async({page,isMobi
   if(isMobile)await explore.tap();else await explore.press('Enter');
   const play=page.locator('#explore-links').getByRole('link',{name:'Odyssey'});
   if(isMobile)await play.tap();else await play.press('Enter');
+  await expect(page.locator('#flight-stage.view-ready canvas')).toBeVisible();
+  // The retained direct surface route supports existing bookmarks and mission saves.
+  await page.goto('./odyssey/?deploy=1');
   await expect(page.locator('#mission-stage canvas')).toBeVisible({timeout:15000});
   await expect(page.getByRole('button',{name:'Start mission'})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width);
@@ -94,7 +97,12 @@ test('finish the story with movement, recovery, and assembly',async({page,isMobi
     await activate('Inspect '+part);
     await expect(page.getByRole('dialog',{name:part})).toBeVisible();
     await activate('Collect part');
+    if(isMobile){
+      if(part==='Wheel assembly')await expect(page.locator('#scanner-toggle')).toHaveText('Workbench & inventory');
+      await page.locator('#scanner-toggle').tap();
+    }
     await expect(page.getByRole('row',{name:new RegExp(part)})).toContainText('Collected');
+    if(isMobile&&part!=='Wheel assembly')await activate('Close details');
   }
   await expect(page.getByRole('heading',{name:'Workbench'})).toBeVisible();
   await activate('Solaris');
@@ -112,6 +120,7 @@ test('finish the story with movement, recovery, and assembly',async({page,isMobi
   await expect(page.locator('#progress')).toHaveText('1/3 fitted');
   await page.reload();
   await expect(page.locator('#progress')).toHaveText('1/3 fitted');
+  if(isMobile)await activate('Workbench & inventory');
   await selectPart.selectOption('solar');
   await selectMount.selectOption('deck');
   await activate('Fit Part');
@@ -131,7 +140,8 @@ test('finish the story with movement, recovery, and assembly',async({page,isMobi
   await page.reload();
   await expect(page.getByRole('heading',{name:'Opportunity',exact:true})).toHaveCount(1);
   await page.getByRole('link',{name:'Replay Story'}).click();
-  await expect(page.getByRole('button',{name:'Start mission'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'We have a fragment.'})).toBeVisible();
+  expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('omnecarta-story-v1')!).phase)).toBe('briefing');
   await page.getByRole('navigation').getByRole('link',{name:'My Collection'}).click();
   await expect(page.getByRole('heading',{name:'Opportunity',exact:true})).toHaveCount(1);
 });

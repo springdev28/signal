@@ -1,10 +1,11 @@
-import { asset } from './catalog';
 import type { SolarisContext } from './solaris';
-import { icon, routeLink } from './ui';
+import { drawerMarkup, icon, mountDrawer, routeLink } from './ui';
 import { loadOpportunity } from './hardware';
 import { angleDistance, bearing, collectionHasRover, distance, loadStory, missionSite, partById, saveStory, signalStrength, startStory, type PartId, type Phase, type Point } from './mission';
+import { loadFlight, recoveredLogs } from './flight-state';
 import { createStoryScene } from './story-scene';
 import { chartSurface } from './chart';
+import { link } from './catalog';
 
 const initialClues = [
   'An old beacon is broadcasting near the crater rim.',
@@ -32,23 +33,25 @@ export function storyMarkup() {
         <ol>${initialClues.map(clue => `<li>${clue}</li>`).join('')}</ol>
         <button class="button primary" id="start-mission">Start mission</button>
       </div>
+      <ol class="active-clues" id="active-clues" aria-label="Recent clues" hidden></ol>
       <div class="mission-actions"><button class="button outline" id="clues-button">Clues</button>
-        <button class="button outline" id="story-help" aria-controls="control-notes" aria-expanded="false">Controls</button></div>
+        <button class="button outline" id="story-help" aria-controls="control-notes" aria-expanded="false">Controls</button>
+        <button class="button outline scanner-toggle" type="button" id="scanner-toggle" aria-controls="detail-drawer" aria-expanded="false">Map &amp; scanner</button></div>
       <p id="control-notes" hidden>Move with WASD, the arrow keys, or the direction buttons. Drag to orbit and scroll or pinch to zoom. Press E to scan or inspect.</p>
-      <figure class="mission-portrait"><img src="${asset('astra-portrait.png')}" alt="Astra’s binocular head, long segmented neck, and draped body"><figcaption>Astra</figcaption></figure>
     </aside>
     <div class="mission-main">
       <section class="mission-view" aria-label="Mission view">
-        <div class="scene-toolbar"><span id="scene-view-label">Terrain view</span>
+        <div id="mission-stage">
+          <p id="scene-status" role="status">Loading 3D scene…</p>
+        </div>
+        <div class="scene-toolbar">
         <div class="scene-controls" aria-label="Camera controls">
           <button data-camera="left" aria-label="Orbit left" title="Orbit left">${icon('left',18)}</button>
           <button data-camera="right" aria-label="Orbit right" title="Orbit right">${icon('right',18)}</button>
           <button data-camera="in" aria-label="Zoom in" title="Zoom in">${icon('plus',18)}</button>
           <button data-camera="out" aria-label="Zoom out" title="Zoom out">${icon('minus',18)}</button>
           <button data-camera="reset" aria-label="Reset view" title="Reset view">${icon('reset',18)}</button>
-        </div></div>
-        <div id="mission-stage">
-          <p id="scene-status" role="status">Loading 3D scene…</p>
+        </div>
         </div>
         <div class="scene-caption" role="status"><span>Solaris</span><p id="scene-caption"></p></div>
       </section>
@@ -61,7 +64,6 @@ export function storyMarkup() {
         </div>
         <div class="field-actions"><div class="mission-actions">
           <button class="button primary" id="scan">${icon('scan',18)} Scan</button>
-          <button class="button outline scanner-toggle" type="button" id="scanner-toggle" aria-controls="navigation-tools">Map &amp; scanner</button>
           <button class="button outline" id="interact" disabled>Inspect part</button></div>
           <p id="nearby"></p><p id="field-reading" role="status">Scan to take a reading.</p><p id="field-position"></p>
         </div>
@@ -80,12 +82,13 @@ export function storyMarkup() {
         </div>
         <p class="map-legend">A Astra · S Twin spires · T Wheel tracks<span id="wreck-legend" hidden> · W Wreck</span></p>
         <p id="position"></p><p id="signal">Scan to take a reading.</p>
+        <div id="recovery-waypoints" hidden><label>Locked waypoint<select id="surface-waypoint"></select></label><p id="waypoint-reading"></p><p id="waypoint-clue"></p></div>
         <figure class="signal-figure"><canvas id="signal-chart" width="360" height="175" role="img" aria-label="Signal strength by distance. No samples yet."></canvas>
           <figcaption>Signal (%) by distance (m). Dots mark scans. The ring follows Astra.</figcaption></figure>
-        <button class="button outline scanner-toggle" id="back-to-field" type="button">Back to controls</button>
       </section>
       <section id="workbench" class="mission-panel" hidden>
         <h2>Workbench</h2><p>Match each part to a mount. Rotate it before fitting, or drag it onto the mount.</p>
+        <p id="assembly-clue" aria-live="polite">Select a recovered part to read its fitting clue.</p>
         <div id="assembly-controls"><div class="assembly-select">
           <label>Part <select id="assembly-part"><option value="">Select a part</option>${missionSite.parts.map(part=>`<option value="${part.id}">${part.name}</option>`).join('')}</select></label>
           <label>Mount <select id="assembly-mount"><option value="">Select a mount</option>${missionSite.mounts.map(mount=>`<option value="${mount.id}">${mount.name} · ${mount.direction} marker</option>`).join('')}</select></label>
@@ -94,10 +97,11 @@ export function storyMarkup() {
         <p id="fit-feedback" role="status"></p>
       </section>
       <section class="mission-panel" id="inventory-panel">
-        <h2>Inventory</h2><table aria-label="Inventory"><thead><tr><th scope="col">Part</th><th scope="col">Clue</th><th scope="col">State</th></tr></thead><tbody id="inventory"></tbody></table>
+        <h2>Inventory</h2><table aria-label="Inventory"><thead><tr><th scope="col">Part</th><th scope="col">State</th></tr></thead><tbody id="inventory"></tbody></table>
       </section>
     </aside>
   </div>
+  ${drawerMarkup('Mission tools')}
   <dialog class="story-dialog" id="story-notes" aria-labelledby="notes-title">
     <div class="dialog-heading"><h2 id="notes-title">Clues</h2><span data-chat-slot></span><button class="close" data-close="story-notes" aria-label="Close clues">×</button></div>
     <ol id="clue-log"></ol></dialog>
@@ -116,6 +120,8 @@ export function storyMarkup() {
 export function mountStory(solaris: SolarisContext) {
   const $ = <T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
   let state=loadStory();
+  const flight=loadFlight(),hasFixes=Object.values(flight.contacts).every(c=>c.locked)&&flight.phase==='surface';
+  let waypoint:PartId=missionSite.parts.find(p=>!state.collected.includes(p.id))?.id??'camera';
   if (new URLSearchParams(location.search).has('replay')) {
     state=startStory();
     saveStory(state);
@@ -123,7 +129,7 @@ export function mountStory(solaris: SolarisContext) {
   }
   let selected:PartId|null=null, angle=0, inspection:PartId|null=null;
   let cutscene=false, cutMode:'timed'|'missed'|'untimed'='timed', timer=0, deadline=0;
-  let lastSave=0, lastGraph=0;
+  let lastSave=0, lastGraph=0, talkUntil=0;
   let pausedForChat = false, timeRemaining = 0, transitioning = false;
   const keys=new Set<string>();
   const pointers=new Map<number,string>();
@@ -133,17 +139,20 @@ export function mountStory(solaris: SolarisContext) {
   const partSelect=$<HTMLSelectElement>('assembly-part'), mountSelect=$<HTMLSelectElement>('assembly-mount');
   const cutDialog=$<HTMLDialogElement>('story-cutscene'), partDialog=$<HTMLDialogElement>('part-dialog');
   const notes=$<HTMLDialogElement>('story-notes');
-  $('scanner-toggle').addEventListener('click',()=>{
-    nav.scrollIntoView({block:'start',behavior:'instant'});
-    $('back-to-field').focus({preventScroll:true});
-  });
-  $('back-to-field').addEventListener('click',()=>{
-    field.scrollIntoView({block:'end',behavior:'instant'});
-    $('scanner-toggle').focus({preventScroll:true});
-  });
+  const toolsDrawer=$<HTMLDialogElement>('detail-drawer');
+  mountDrawer($('mission-sidebar'),toolsDrawer,$<HTMLButtonElement>('scanner-toggle'));
   const chart=$<HTMLCanvasElement>('signal-chart');
   const canWalk=()=>['search','locate','recover'].includes(state.phase)&&!transitioning&&!document.querySelector('dialog[open]');
-  const sceneState=()=>({save:state,selection:selected,angle,cutscene});
+  const sceneState=()=>({save:state,selection:selected,angle,cutscene,talkUntil,waypoint:hasFixes&&state.phase==='recover'?flight.contacts[waypoint]:undefined});
+  if(hasFixes){
+    const select=$<HTMLSelectElement>('surface-waypoint');
+    select.innerHTML=missionSite.parts.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+    select.addEventListener('change',()=>{waypoint=select.value as PartId;render();});
+    for(const [i,part] of missionSite.parts.entries()){
+      const marker=document.createElement('span');marker.className='map-marker map-lock';marker.textContent=['C','P','D'][i];marker.title=part.name+' · locked in flight';marker.dataset.lock=part.id;
+      $('minimap').append(marker);mapPoint(marker,[flight.contacts[part.id].x,flight.contacts[part.id].z]);
+    }
+  }
   let scene:ReturnType<typeof createStoryScene>|undefined;
   let lastFrame=0;
   function runFallback(now: number) {
@@ -162,6 +171,7 @@ export function mountStory(solaris: SolarisContext) {
   });
 
   function say(line: string) {
+    talkUntil=performance.now()+2600;
     state.history.push(line);
     state.history = state.history.slice(-30);
     $('scene-caption').textContent = line;
@@ -196,12 +206,17 @@ export function mountStory(solaris: SolarisContext) {
     if(performance.now()-lastGraph>125&&state.samples.length){ drawChart(); lastGraph=performance.now(); }
     $('minimap').setAttribute('aria-label',`Crater rim map. Astra at ${position}. S marks Twin spires and T marks Wheel tracks.${state.phase==='recover'?' W marks the wreck.':''}`);
     if(state.phase!=='recover')return;
+    if(hasFixes){
+      const fix=flight.contacts[waypoint];
+      $('waypoint-reading').textContent=`${distance(state.x,state.z,[fix.x,fix.z]).toFixed(1)} m · ${bearing(state.x,state.z,[fix.x,fix.z])}° · fix ±${fix.uncertainty.toFixed(1)} m`;
+    }
     const part=nearestPart();
     interact.disabled=!part;
     interact.textContent=part?'Inspect '+part.name:'Inspect part';
     $('nearby').textContent=part?'Within reach':'Move within reach of a part.';
   }
   function drawChart(){
+    chart.setAttribute('aria-label','Signal strength by distance. '+(state.samples.length?state.samples.map(s=>`${s.distance} m, ${s.strength}%`).join('; '):'No samples yet.'));
     const surface=chartSurface(chart);
     if(!surface)return;
     const {context,width:w,height:h,fontSize,color}=surface;
@@ -230,14 +245,18 @@ export function mountStory(solaris: SolarisContext) {
       context.beginPath();context.arc(left+range/60*(right-left),bottom-strength/100*(bottom-top),6,0,Math.PI*2);
       context.stroke(); context.lineWidth=1;
     }
-    chart.setAttribute('aria-label','Signal strength by distance. '+(state.samples.length?state.samples.map(s=>`${s.distance} m, ${s.strength}%`).join('; '):'No samples yet.'));
   }
   new ResizeObserver(drawChart).observe(chart);
   void document.fonts.ready.then(drawChart);
   function render(){
     $('objective').textContent=objectives[state.phase];
     $('mission-layout').dataset.phase=state.phase;
-    $('scene-view-label').textContent=state.phase==='assemble'||state.phase==='complete'?'Workbench view':'Terrain view';
+    $('scanner-toggle').textContent=state.phase==='assemble'?'Workbench & inventory':state.phase==='recover'?'Map & inventory':'Map & scanner';
+    $('scanner-toggle').hidden=state.phase==='complete';
+    if(state.phase==='complete'&&toolsDrawer.open)toolsDrawer.close();
+    const recentClues=[...(hasFixes?Object.values(recoveredLogs).map(log=>log.clue):initialClues),...state.observed.map(i=>missionSite.landmarks[i].clue),...state.collected.map(id=>partById(id)!.clue)];
+    $('active-clues').hidden=state.phase==='briefing'||state.phase==='complete';
+    $('active-clues').innerHTML=recentClues.slice(-2).map(clue=>`<li>${clue}</li>`).join('');
     solaris.subject=cutscene?'Odyssey · Scanner stabilization':state.phase==='assemble'?'Odyssey · Workbench':`Odyssey · ${objectives[state.phase]}`;
     solaris.selection=selected??undefined;
     $('progress').textContent=state.phase==='search'||state.phase==='locate'?`${state.observed.length}/2 observations`:state.phase==='recover'?`${state.collected.length}/3 recovered`:state.phase==='assemble'||state.phase==='complete'?`${state.fitted.length}/3 fitted`:'';
@@ -245,6 +264,13 @@ export function mountStory(solaris: SolarisContext) {
     field.hidden=!['search','locate','recover'].includes(state.phase);
     nav.hidden=state.phase==='assemble'||state.phase==='complete';
     interact.hidden=state.phase!=='recover';
+    $('recovery-waypoints').hidden=!hasFixes||state.phase!=='recover';
+    if(hasFixes){
+      $<HTMLSelectElement>('surface-waypoint').value=waypoint;
+      $('waypoint-clue').textContent=recoveredLogs[waypoint].clue;
+      for(const marker of document.querySelectorAll<HTMLElement>('[data-lock]'))marker.hidden=state.collected.includes(marker.dataset.lock as PartId);
+      for(const option of $<HTMLSelectElement>('surface-waypoint').options)option.disabled=state.collected.includes(option.value as PartId);
+    }
     $('map-wreck').hidden=state.phase!=='recover';
     $('wreck-legend').hidden=state.phase!=='recover';
     workbench.hidden=state.phase!=='assemble';
@@ -252,10 +278,11 @@ export function mountStory(solaris: SolarisContext) {
     $('mission-complete').hidden=state.phase!=='complete';
     $('inventory').innerHTML=missionSite.parts.map(p=>{
       const fitted=state.fitted.includes(p.id), collected=state.collected.includes(p.id);
-      return `<tr><th scope="row">${p.name}</th><td>${collected?p.clue:'—'}</td><td class="${fitted||collected?'part-ready':'part-missing'}">${fitted?'✓ Fitted':collected?'✓ Collected':'Missing'}</td></tr>`;
+      return `<tr><th scope="row">${p.name}</th><td class="${fitted||collected?'part-ready':'part-missing'}">${fitted?'✓ Fitted':collected?'✓ Collected':'Missing'}</td></tr>`;
     }).join('');
-    $('clue-log').innerHTML=[...initialClues,...state.observed.map(i=>missionSite.landmarks[i].clue),...state.collected.map(id=>partById(id)!.clue)].map(v=>`<li>${v}</li>`).join('');
+    $('clue-log').innerHTML=[...(hasFixes?Object.values(recoveredLogs).map(log=>log.clue):initialClues),...state.observed.map(i=>missionSite.landmarks[i].clue),...state.collected.map(id=>partById(id)!.clue)].map(v=>`<li>${v}</li>`).join('');
     $('part-angle').textContent=angle+'°';
+    $('assembly-clue').textContent=partById(selected)?.clue??'Select a recovered part to read its fitting clue.';
     partSelect.value=selected??'';
     for(const option of partSelect.options)option.disabled=state.fitted.some(id=>id===option.value);
     for(const option of mountSelect.options)option.disabled=state.fitted.some(id=>partById(id)?.mount===option.value);
@@ -433,6 +460,7 @@ export function mountStory(solaris: SolarisContext) {
     const part=partById(inspection);
     if(!part||state.collected.includes(part.id)||distance(state.x,state.z,part.position)>missionSite.reach)return;
     state.collected.push(part.id);
+    waypoint=missionSite.parts.find(p=>!state.collected.includes(p.id))?.id??waypoint;
     inspection=null;
     partDialog.close();
     scene?.pickup(part.id);
@@ -496,10 +524,7 @@ export function mountStory(solaris: SolarisContext) {
   });
   $('fit-part').addEventListener('click',fit);
   $('replay').addEventListener('click',()=>{
-    state=startStory();selected=null;angle=0;mountSelect.value='';
-    showReading('Scan to take a reading.');
-    say('Astra, we have a signal near the crater rim. Review the clues before heading out.');
-    commit();$('start-mission').focus();
+    location.href=link('story')+'?replay=1';
   });
 
   function hint(){

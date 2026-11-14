@@ -1,0 +1,39 @@
+/* Interface accents accompanying the live, shaded 3D celestial environment. */
+:root {
+  --celestial-gold: #f0ce89;
+  --celestial-ivory: #fff0d2;
+}
+
+body[data-interface="orbit"] .simulation-canvas,
+body[data-interface="world"] .model-canvas {
+  background: #06151c;
+}
+body[data-interface="orbit"] .simulation-canvas::after {
+  background: linear-gradient(90deg, #030f1740, transparent 30%, transparent 85%, #030f1720);
+}
+body[data-interface="hardware"] .model-canvas {
+  background: radial-gradient(ellipse at 50% 45%, #17323a, #06151c 70%);
+}
+body:is([data-interface="orbit"], [data-interface="world"], [data-interface="hardware"]) .topbar {
+  background: #06151ce6;
+  border-bottom-color: #bc95666b;
+}
+.orbit-heading h1, .view-title h1 { color: var(--celestial-ivory); text-shadow: 0 3px 22px #0008; }
+.orbit-heading .eyebrow, .view-title .eyebrow { color: var(--celestial-gold); }
+.orbit-heading > p:last-child, .view-title > p:last-child { color: #d6e3e4; text-shadow: 0 2px 8px #000; }
+.world-target { background-color: #0a1c25f2; }
+.space-label { border-color: #b7965a99; background: #071b23ed; }
+.space-label::before { border-left-color: var(--celestial-gold); }
+.space-label:hover, .space-label[data-selected="true"] { background: #123641ed; border-color: var(--celestial-gold); }
+.orbit-disclosure, .scene-key, body[data-interface="world"] .view-note,
+body[data-interface="hardware"] .view-note { color: #e0e8e6; text-shadow: 0 1px 6px #000, 0 1px 12px #000; }
+
+@media (max-width: 620px) {
+  body[data-interface="orbit"] .simulation-canvas::after {
+    background: linear-gradient(#03101955, transparent 38%, transparent 78%, #03101922);
+  }
+}
+
+@media (max-width: 620px) and (max-height: 720px) {
+  body[data-interface="world"] .view-title > p:last-child { display: none; }
+}

@@ -1,0 +1,93 @@
+.flight-interface{position:fixed;inset:0;isolation:isolate}
+.flight-interface .simulation-canvas{z-index:-1}
+.flight-heading{position:absolute;left:28px;top:94px;max-width:390px;pointer-events:none}
+.flight-heading h1{font:600 2.8rem/1.1 var(--cinematic);margin:8px 0;color:var(--text)}
+.flight-heading>p:last-child{font-size:.82rem;line-height:1.5;color:var(--muted);max-width:320px}
+.flight-brief{position:absolute;left:28px;top:235px;width:345px;max-height:calc(100dvh - 280px);overflow:auto}
+.flight-brief h2{font:600 2rem var(--cinematic);margin:10px 0}
+.flight-brief p{font-size:.88rem;line-height:1.7;margin:10px 0}
+.flight-brief .button{margin-top:12px}
+.flight-records{position:absolute;right:28px;top:100px;width:310px;max-height:calc(100dvh - 410px);overflow:auto;padding:16px}
+.flight-records summary{display:flex;justify-content:space-between;gap:8px;align-items:center;min-height:44px;cursor:pointer;font-size:.83rem;color:var(--cyan-strong)}
+#lock-count{font:500 .68rem var(--mono);color:var(--amber)}
+.record-disclaimer{font-size:.67rem;line-height:1.5;color:var(--muted);margin:8px 0 16px}
+.record-tabs{display:flex;gap:6px;margin-bottom:15px}
+.record-tab{flex:1;min-height:44px;border:1px solid var(--line);background:#081a24;color:var(--muted);font:.78rem Inter,sans-serif}
+.record-tab[aria-pressed=true]{border-color:var(--cyan);color:var(--cyan-strong);background:var(--raised)}
+.record-tab.contact-locked::after{content:' ✓';color:var(--cyan)}
+#packet-name{font-size:.64rem;line-height:1.5}
+#packet-clue{font-size:.8rem;line-height:1.7;margin:10px 0 16px}
+.contact-reading{border-block:1px solid var(--line);padding:12px 0;margin:8px 0 12px;display:grid;gap:8px}
+.contact-reading strong{font-size:.83rem}.contact-reading output{font:500 .7rem var(--mono);color:var(--amber)}
+.contact-reading p{font-size:.7rem;color:var(--muted)}
+.flight-records .button{width:100%;margin-top:6px;font-size:.78rem}
+.clue-hypothesis{display:grid;gap:8px;font-size:.73rem;color:var(--muted)}
+.clue-hypothesis select{width:100%;min-height:44px;color:var(--text);background:var(--raised);border:1px solid var(--line);font:.78rem Inter,sans-serif}
+.flight-interface[data-phase=survey] .flight-heading h1,.flight-interface[data-phase=approach] .flight-heading h1{font-size:1.8rem}
+.flight-interface[data-phase=survey] .flight-heading>p:last-child{max-width:300px}
+.flight-instruments{position:absolute;left:28px;right:28px;bottom:22px;display:flex;align-items:end;justify-content:space-between;pointer-events:none}
+.flight-instruments>*{pointer-events:auto}
+.flight-radar{padding:12px;width:230px}
+.flight-radar h2{display:flex;justify-content:space-between;font:500 .73rem var(--mono);color:var(--cyan);margin-bottom:9px}
+.flight-radar h2 span{color:var(--muted)}
+#flight-radar{display:block;width:100%;aspect-ratio:1;border-radius:50%;border:1px solid var(--line)}
+.flight-radar p{font-size:.62rem;line-height:1.5;margin-top:8px;color:var(--muted)}
+.flight-pilot{width:400px;padding:16px}
+.flight-readings{display:flex;justify-content:space-between;gap:10px;margin-bottom:14px}
+.flight-readings span{font-size:.65rem;color:var(--muted)}
+.flight-readings output{display:block;margin-top:6px;font:500 .87rem var(--mono);color:var(--cyan-strong)}
+.flight-pilot label{display:flex;justify-content:space-between;font-size:.8rem}
+#flight-throttle{width:100%;min-height:44px;accent-color:var(--cyan);margin-bottom:8px;cursor:ew-resize}
+.flight-actions,.flight-steering{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+.flight-steering button{width:44px;height:44px;display:grid;place-items:center;color:var(--cyan);background:#102531;border:1px solid var(--line);touch-action:none}
+.flight-actions>.button{font-size:.76rem;padding-inline:10px;gap:5px}
+.flight-pilot>p{font-size:.65rem;line-height:1.5;color:var(--muted);margin-top:10px}
+.flight-camera{min-height:44px;color:var(--cyan);background:transparent;border:0;text-decoration:underline;font:.7rem Inter,sans-serif;padding:6px 0}
+.flight-dialogue{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);width:350px;padding:14px 16px;border-left:2px solid var(--amber)}
+.flight-dialogue>span{font-size:.73rem;color:var(--amber)}
+.flight-dialogue p{font-size:.81rem;line-height:1.6;margin-top:7px}
+.flight-approach{position:absolute;right:28px;top:240px;width:310px}
+.flight-approach h2,.flight-landing h2{font:600 1.8rem var(--cinematic);margin-bottom:12px}
+.flight-approach p{font-size:.82rem;line-height:1.6;margin:12px 0}
+#approach-reading{font:500 .78rem/1.6 var(--mono);color:var(--cyan)}
+.flight-landing{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);width:450px}
+.flight-landing p{font-size:.84rem;line-height:1.6;margin-bottom:14px}
+.flight-interface[data-phase=approach] .flight-records{display:none}
+.flight-interface[data-phase=landing] .flight-dialogue,.flight-interface[data-phase=landed] .flight-dialogue,.flight-interface[data-phase=exit] .flight-dialogue,.flight-interface[data-phase=briefing] .flight-dialogue{display:none}
+#recovery-waypoints{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+#recovery-waypoints label{font-size:.78rem;display:grid;gap:8px}
+#recovery-waypoints select{width:100%;min-height:44px;background:var(--raised);color:var(--text);border:1px solid var(--line)}
+#waypoint-reading{color:var(--cyan);font:500 .75rem/1.6 var(--mono);margin-top:8px}
+.map-lock{color:#b9f3fb;border-color:var(--cyan)}
+@media(max-width:1100px){
+ .flight-records{width:270px;max-height:calc(100dvh - 380px)}
+ .flight-pilot{width:360px}.flight-dialogue{left:280px;transform:none;bottom:320px;width:300px}
+ .flight-brief{width:300px}.flight-radar{width:210px}
+}
+@media(max-width:620px){
+ .flight-heading{left:16px;top:80px;max-width:calc(100% - 32px)}
+ .flight-heading h1{font-size:1.9rem}.flight-heading .eyebrow{font-size:.64rem}
+ .flight-heading>p:last-child{font-size:.72rem;max-width:340px}
+ .flight-brief{left:16px;right:16px;top:260px;width:auto;max-height:calc(100dvh - 280px);padding:16px}
+ .flight-brief h2{font-size:1.8rem}.flight-brief p{font-size:.79rem;line-height:1.65}
+ .flight-records{top:190px;left:16px;right:16px;width:auto;max-height:55dvh;padding:8px 12px;z-index:4}
+ .flight-records[open]{background:#0b1c26fa;box-shadow:0 20px 50px #000b}
+ .flight-records summary{font-size:.77rem}
+ .flight-instruments{left:16px;right:16px;bottom:16px;display:block}
+ .flight-pilot{width:100%;padding:10px}.flight-readings{margin-bottom:8px}
+ .flight-pilot label{font-size:.75rem}.flight-pilot>p{font-size:.6rem;margin-top:6px}
+ .flight-actions{gap:5px}.flight-steering{gap:3px}.flight-actions>.button{font-size:.68rem;padding-inline:8px}
+ .flight-radar{position:absolute;bottom:260px;left:0;width:136px;padding:8px}
+ .flight-radar h2{font-size:.6rem}.flight-radar p{font-size:.54rem}
+ .flight-dialogue{left:168px;right:16px;bottom:282px;transform:none;width:auto;padding:10px}
+ .flight-dialogue p{font-size:.7rem;line-height:1.55}.flight-dialogue>span{font-size:.68rem}
+ .flight-approach{left:16px;right:16px;top:190px;width:auto;padding:14px}
+ .flight-approach p{font-size:.74rem;line-height:1.5;margin:8px 0}
+ .flight-approach h2{font-size:1.5rem;margin-bottom:7px}
+ .flight-landing{left:16px;right:16px;width:auto;transform:none;padding:16px}
+ .flight-landing .button{font-size:.78rem}
+}
+@media(max-height:650px) and (min-width:621px){.flight-heading{top:85px}.flight-heading h1{font-size:1.9rem}.flight-brief{top:190px}.flight-records{top:85px;max-height:330px}.flight-radar{width:170px}.flight-pilot{width:370px}.flight-dialogue{left:220px;bottom:24px;width:260px}.flight-approach{top:180px}}
+
+.flight-fallback-art{display:none}.flight-fallback .flight-fallback-art{display:block;width:100%;height:100%;object-fit:cover;opacity:.6}.flight-fallback .view-state{max-width:320px;background:#081b29;padding:16px;color:var(--text)}
+@media(max-width:620px){.flight-interface[data-phase=survey] .flight-heading h1,.flight-interface[data-phase=approach] .flight-heading h1{font-size:1.5rem;margin:5px 0}.flight-interface[data-phase=survey] .flight-heading>p:last-child{font-size:.67rem}.flight-camera{position:absolute;right:12px;bottom:6px}.flight-pilot>p{padding-right:78px}.flight-pilot{min-height:223px}}

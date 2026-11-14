@@ -1,6 +1,10 @@
 # >_signal
 
-Open Explore to enter Omni-View or Odyssey. Omni-View opens Omnecarta’s Moon and Mars atlas and hardware exhibits. Odyssey is a fictional recovery mission with Astra and Solaris. Mission progress and My Collection are saved on the device.
+Open Explore to enter Omni-View or Odyssey. The browser is a full-screen simulation: choose a world in the moving orbital overview, approach it, scan a landing site, and deploy Astra onto its surface. Omni-View opens Omnecarta’s Moon and Mars atlas and freely inspectable hardware. Odyssey starts inside the survey ship. Interpret three damaged downlink records, fly and compare radar bearings, lock the parts, land, and recover them as Astra before assembling the rover. Surface exploration, mission progress, and My Collection are saved on the device.
+
+Drag to orbit, scroll or pinch to zoom, and use the camera buttons to reset. The orbital canvas also accepts arrow keys, +/−, and Home when focused. On the surface, use WASD, arrows, the touch pad, or tap the terrain to walk; Space jumps and E scans. Set a waypoint from the map. In Odyssey’s cockpit, WASD or arrow keys steer, Q/E changes throttle, B brakes and Space scans. Each record needs a matching search region and at least three scans from positions separated by 8 m. Wider bearing angles tighten uncertainty. Lock at 5 m or less, then fly the landing approach or use the optional guide. Landing offers timed stabilization, retry and untimed input. On foot, use the retained waypoint fixes and recover parts within reach. At the workbench, match the component, mount and orientation.
+
+The orbital model solves Kepler’s equation using NASA archive periods and eccentricities. Body sizes and distances are compressed and the epoch is illustrative. Surface environments are original artistic reconstructions. See the provenance record for these distinctions.
 
 [Open the Hostinger build](https://lawngreen-donkey-344010.hostingersite.com/) · [Verification](docs/verification.md) · [Visual style](docs/visual-style.md) · [Asset provenance](docs/assets.md)
 
@@ -18,3 +22,5 @@ Set `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` in the server environment
 For browser tests, install Chromium with `npx playwright install chromium`, build, and run `npm test`. Set `OMNECARTA_TEST_URL` to run against a deployed build. With the production server running, use `node scripts/capture-views.mjs` to capture desktop and phone screenshots.
 
 The team used its existing Hostinger plan for deployment. No Space Apps Global Offer was used.
+
+Record an uninterrupted cockpit-to-collection journey with `OMNECARTA_TEST_URL=http://127.0.0.1:4173/ node scripts/record-flight.mjs`. The test uses actual controls and no mission-state shortcuts. It writes a WebM and scene screenshots to `artifacts/flight/`.

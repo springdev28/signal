@@ -1,9 +1,9 @@
-# Omnecarta
+# >_signal
 
-Omnecarta brings a public space archive and a playable 3D story together in one browser app. Visit the Moon and Mars guides and inspect the Lunar Roving Vehicle and Opportunity exhibits. In Play Story, help Astra locate Opportunity, recover three parts, and fit them on the workbench. Solaris offers clues and hints along the way. The reconstructed craft stays in My Collection on the device.
+Explore two worlds or recover a rover in one browser app. Omni-View opens Omnecarta’s interactive Moon and Mars atlas, with mission markers and inspectable rover exhibits. Odyssey follows Astra and Solaris through a fictional Opportunity recovery. Find the signal, recover the parts, and reconstruct the rover at a 3D workbench. The completed craft stays in My Collection on the device.
 
-- [Open Omnecarta](https://lawngreen-donkey-344010.hostingersite.com/)
+- [Open >_signal](https://lawngreen-donkey-344010.hostingersite.com/)
 - [Source](https://github.com/springdev28/signal)
-- [NASA Spirit & Opportunity](https://science.nasa.gov/mission/mars-exploration-rovers-spirit-and-opportunity/) supports the historical exhibit and the dust experiment. The search and recovery mission is fictional.
+- [NASA Spirit & Opportunity](https://science.nasa.gov/mission/mars-exploration-rovers-spirit-and-opportunity/) supports the exhibit, the rover model, and the dust experiment. [NASA Space Science Data Coordinated Archive](https://nssdc.gsfc.nasa.gov/) and the [Lunar Roving Vehicles record](https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1971-063C) support the lunar atlas and Apollo rover.
 
-The team used its existing Hostinger plan for deployment.
+The team used its existing Hostinger plan.

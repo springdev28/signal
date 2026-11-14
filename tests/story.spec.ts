@@ -46,19 +46,21 @@ test('finish the story with movement, recovery, and assembly',async({page,isMobi
     if(isMobile)await button.tap();else await button.press('Enter');
   };
   await page.goto('./');
-  const play=page.getByRole('main').getByRole('link',{name:'Play Story'});
+  const explore=page.getByRole('button',{name:'Explore'});
+  if(isMobile)await explore.tap();else await explore.press('Enter');
+  const play=page.locator('#explore-links').getByRole('link',{name:'Odyssey'});
   if(isMobile)await play.tap();else await play.press('Enter');
   await expect(page.locator('#mission-stage canvas')).toBeVisible({timeout:15000});
-  await expect(page.getByRole('heading',{name:'Briefing'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Start mission'})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width);
   await activate('Start mission');
   await activate('Scan');
   const initial=await page.locator('#field-reading').innerText();
-  await activate('Talk to Solaris');
+  await activate('Solaris');
   await activate('Request hint');
-  await expect(page.locator('#story-hint')).toContainText('two landmarks');
+  await expect(page.locator('#chat-messages li').last()).toContainText('two landmarks');
   await activate('Request hint');
-  await expect(page.locator('#story-hint')).toContainText('Twin spires');
+  await expect(page.locator('#chat-messages li').last()).toContainText('Twin spires');
   await activate('Close Solaris');
   await moveTo(page,-8,-4,isMobile);
   if(isMobile)await activate('Scan');else await page.keyboard.press('e');
@@ -95,6 +97,9 @@ test('finish the story with movement, recovery, and assembly',async({page,isMobi
     await expect(page.getByRole('row',{name:new RegExp(part)})).toContainText('Collected');
   }
   await expect(page.getByRole('heading',{name:'Workbench'})).toBeVisible();
+  await activate('Solaris');
+  await expect(page.locator('#chat-context')).toHaveText('Odyssey · Workbench');
+  await activate('Close Solaris');
   const selectPart=page.getByRole('combobox',{name:'Part',exact:true});
   const selectMount=page.getByRole('combobox',{name:'Mount',exact:true});
   await selectPart.selectOption('camera');
@@ -126,7 +131,7 @@ test('finish the story with movement, recovery, and assembly',async({page,isMobi
   await page.reload();
   await expect(page.getByRole('heading',{name:'Opportunity',exact:true})).toHaveCount(1);
   await page.getByRole('link',{name:'Replay Story'}).click();
-  await expect(page.getByRole('heading',{name:'Briefing'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Start mission'})).toBeVisible();
   await page.getByRole('navigation').getByRole('link',{name:'My Collection'}).click();
   await expect(page.getByRole('heading',{name:'Opportunity',exact:true})).toHaveCount(1);
 });
@@ -146,4 +151,51 @@ test('manual untimed scanner input restores control',async({page})=>{
   await page.getByRole('button',{name:'Stabilize',exact:true}).click();
   await expect(page.locator('#progress')).toHaveText('0/3 recovered');
   await expect(page.getByRole('button',{name:'Move north'})).toBeVisible();
+});
+
+test('Solaris pauses the timed cutscene and preserves the conversation on another view',async({page})=>{
+  await page.addInitScript(()=>{
+    if(sessionStorage.getItem('timer-fixture'))return;
+    sessionStorage.setItem('timer-fixture','1');
+    localStorage.setItem('omnecarta-story-v1',JSON.stringify({
+      version:1,phase:'locate',x:10,z:-10,observed:[0,1],collected:[],fitted:[],samples:[],history:[],
+    }));
+  });
+  const requests:unknown[]=[];
+  await page.route('**/api/solaris',async route=>{
+    if(route.request().method()==='GET'){
+      await route.fulfill({json:{live:true}});
+      return;
+    }
+    const data=route.request().postDataJSON();
+    requests.push(data);
+    await route.fulfill({json:{reply:data.view==='moon'?'Apollo 15 landed near Hadley Rille.':'The scanner is ready, Astra.',citations:data.view==='moon'?['lunarRover','unapproved']:[]}});
+  });
+  await page.goto('./odyssey/');
+  await page.getByRole('button',{name:'Scan',exact:true}).click();
+  await expect(page.locator('#cutscene-time')).toContainText('remaining');
+  await page.getByRole('dialog',{name:'Stabilize the scanner'}).getByRole('button',{name:'Solaris',exact:true}).click();
+  await expect(page.locator('#cutscene-time')).toHaveText('Paused for Solaris');
+  await expect(page.locator('#chat-context')).toHaveText('Odyssey · Scanner stabilization');
+  await page.getByLabel('Ask Solaris').fill('What should I do here?');
+  await page.getByRole('button',{name:'Send',exact:true}).click();
+  await expect(page.getByText('The scanner is ready, Astra.')).toBeVisible();
+  await page.waitForTimeout(1100);
+  await expect(page.locator('#cutscene-time')).toHaveText('Paused for Solaris');
+  await page.getByRole('button',{name:'Close Solaris'}).click();
+  await expect(page.locator('#cutscene-time')).toContainText('remaining');
+  await page.getByRole('button',{name:'Stabilize',exact:true}).click();
+  await expect(page.locator('#progress')).toHaveText('0/3 recovered');
+
+  await page.goto('./moon/');
+  await page.getByRole('button',{name:'Solaris',exact:true}).click();
+  await expect(page.getByText('The scanner is ready, Astra.')).toBeVisible();
+  await expect(page.locator('#chat-context')).toHaveText('Moon');
+  await page.getByLabel('Ask Solaris').fill('And what happened on the Moon?');
+  await page.getByRole('button',{name:'Send',exact:true}).click();
+  await expect(page.getByRole('link',{name:'NASA Lunar Roving Vehicles'})).toBeVisible();
+  expect(requests).toEqual([
+    expect.objectContaining({view:'story',mission:expect.objectContaining({phase:'locate',cutscene:true})}),
+    expect.objectContaining({view:'moon',history:expect.arrayContaining([expect.objectContaining({text:'The scanner is ready, Astra.'})])}),
+  ]);
 });

@@ -1,0 +1,38 @@
+/* Shared interface tokens. Terrain, scientific imagery, and character materials
+   keep their own colors; interface meaning is defined here. */
+:root {
+  color-scheme: dark;
+  font-family: Inter, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  --bg: #090d11;
+  --ink: #080c10;
+  --panel: #0d141a;
+  --raised: #131f27;
+  --hover: #18313b;
+  --line: #526b78;
+  --soft-line: #273b46;
+  --text: #e7edf0;
+  --muted: #a0b1ba;
+  --faint: #92a5af;
+  --cyan: #89e0e4;
+  --cyan-strong: #a9eef0;
+  --amber: #efba78;
+  --landmark: #b8c6cf;
+  --space-1: .25rem;
+  --space-2: .5rem;
+  --space-3: .75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --text-xs: .8125rem;
+  --text-sm: .875rem;
+  --text-base: 1rem;
+  --mono: "IBM Plex Mono", monospace;
+  --display: "Barlow Condensed", sans-serif;
+  --radius: 2px;
+  --control-size: 44px;
+  --duration: 160ms;
+  --shell: 1440px;
+  --header-height: 64px;
+}

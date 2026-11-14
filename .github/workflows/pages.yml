@@ -1,4 +1,4 @@
-name: Publish Omnecarta
+name: Publish >_signal
 on:
   push:
     branches: [main]

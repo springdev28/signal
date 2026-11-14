@@ -10,9 +10,9 @@ export const missionSite = {
     { name: 'Wheel tracks', position: [5, 4] as Point, clue: 'The tracks bend north along the rim. Follow them toward the stronger signal.' },
   ],
   parts: [
-    { id: 'camera', name: 'Camera assembly', position: [6, -12], mount: 'mast', angle: 0, contact: [0, 1.29, -.55], clue: 'Mount it above the deck. Point the lenses toward the front marker.' },
-    { id: 'solar', name: 'Solar panel', position: [14, -8], mount: 'deck', angle: 90, contact: [0, .83, .23], clue: 'Seat it across the deck. Match its long edge to the yellow deck rail.' },
-    { id: 'wheel', name: 'Wheel assembly', position: [9, -5], mount: 'axle', angle: 180, contact: [1.12, .4, 0], clue: 'Attach it on the right side. Face the hub outward.' },
+    { id: 'camera', name: 'Camera assembly', position: [6, -12], mount: 'mast', angle: 0, contact: [0, 1.137, -.605], clue: 'Mount it above the deck. Point the lenses toward the front marker.' },
+    { id: 'solar', name: 'Solar panel', position: [14, -8], mount: 'deck', angle: 90, contact: [0, 1.126, 0], clue: 'Seat it across the deck. Match its long edge to the yellow deck rail.' },
+    { id: 'wheel', name: 'Wheel assembly', position: [9, -5], mount: 'axle', angle: 180, contact: [.797, .214, .175], clue: 'Attach it on the right side. Face the hub outward.' },
   ],
   mounts: [
     {id:'mast', name:'Mast', direction:'front', angle:0},
@@ -77,6 +77,7 @@ export function loadStory():StorySave {
   }
   if (saved.phase === 'complete' && saved.fitted.length !== missionSite.parts.length) saved.phase = 'assemble';
   if (saved.phase === 'assemble' && saved.fitted.length === missionSite.parts.length) saved.phase = 'complete';
+  if (saved.phase === 'recover' && saved.collected.length === missionSite.parts.length) saved.phase = 'assemble';
   if (saved.phase === 'locate' && saved.observed.length < 2) saved.phase = 'search';
   if (saved.phase === 'search' && saved.observed.length === 2) saved.phase = 'locate';
   saved.samples = Array.isArray(value.samples) ? value.samples.filter(s => s && Number.isFinite(s.distance) && s.distance >= 0 && s.distance <= 60 && Number.isFinite(s.strength) && s.strength >= 0 && s.strength <= 100).slice(-24) : [];

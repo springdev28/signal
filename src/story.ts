@@ -1,6 +1,10 @@
-import { link, rover } from './catalog';
+import { asset } from './catalog';
+import type { SolarisContext } from './solaris';
+import { icon, routeLink } from './ui';
+import { loadOpportunity } from './hardware';
 import { angleDistance, bearing, collectionHasRover, distance, loadStory, missionSite, partById, saveStory, signalStrength, startStory, type PartId, type Phase, type Point } from './mission';
 import { createStoryScene } from './story-scene';
+import { chartSurface } from './chart';
 
 const initialClues = [
   'An old beacon is broadcasting near the crater rim.',
@@ -17,93 +21,110 @@ const objectives:Record<Phase,string> = {
 };
 
 export function storyMarkup() {
-  return `<article class="content story"><header class="story-heading">
-  <h1>Play Story</h1><p>Opportunity recovery · ${missionSite.name} · Fictional simulation</p>
-  </header><div id="story-objective"><strong id="objective"></strong><span id="progress"></span></div>
-  <div class="mission-layout"><div class="mission-main">
-  <div id="mission-stage"><p id="scene-status" role="status">Loading the 3D scene…</p>
-    <p class="scene-caption" id="scene-caption" role="status"></p>
-    <div class="scene-controls" aria-label="Camera controls">
-      <button data-camera="left" aria-label="Orbit left">↶</button><button data-camera="right" aria-label="Orbit right">↷</button>
-      <button data-camera="in" aria-label="Zoom in">+</button><button data-camera="out" aria-label="Zoom out">−</button>
-      <button data-camera="reset">Reset view</button>
-    </div>
-  </div>
-  <div id="briefing" class="mission-panel">
-    <h2>Briefing</h2><ol>${initialClues.map(clue=>`<li>${clue}</li>`).join('')}</ol>
-    <p>Move with WASD, the arrow keys, or the direction buttons. Drag to orbit, and scroll or pinch to zoom. Press E or use the action button to scan and interact.</p>
-    <button class="button primary" id="start-mission">Start mission</button>
-  </div>
-  <div id="field-controls" class="mission-panel field-controls" hidden>
-    <div class="direction-pad" aria-label="Move Astra">
-      <button data-move="north" aria-label="Move north">↑</button><button data-move="west" aria-label="Move west">←</button>
-      <button data-move="south" aria-label="Move south">↓</button><button data-move="east" aria-label="Move east">→</button>
-    </div>
-    <div class="field-actions"><button class="button primary" id="scan">Scan</button><button class="button outline" id="interact" disabled>Inspect part</button><p id="nearby"></p><p id="field-reading" role="status">Scan to take a reading.</p><p id="field-position"></p></div>
-  </div>
-  <div id="workbench" class="mission-panel" hidden>
-    <h2>Workbench</h2><p>Choose a part and a mount. Rotate the part to match the mount, then choose Fit Part. You can also drag the selected part onto its mount.</p>
-    <div id="assembly-controls">
-      <div class="assembly-select">
-        <label>Part <select id="assembly-part"><option value="">Select a part</option>${missionSite.parts.map(p=>`<option value="${p.id}">${p.name}</option>`).join('')}</select></label>
-        <label>Mount <select id="assembly-mount"><option value="">Select a mount</option>${missionSite.mounts.map(m=>`<option value="${m.id}">${m.name} · ${m.direction} marker</option>`).join('')}</select></label>
+  return `<article class="shell story"><header class="story-heading">
+    <div><h1>Odyssey</h1><p>Opportunity recovery · ${missionSite.name} · Fictional mission</p></div>
+    ${routeLink('opportunity', 'Mission record', 'quiet-link', true)}
+  </header>
+  <div class="mission-layout" id="mission-layout">
+    <aside class="mission-panel mission-brief">
+      <div class="mission-objective"><h2>Objective</h2><p id="objective"></p><span id="progress" class="coordinates"></span></div>
+      <div id="briefing">
+        <ol>${initialClues.map(clue => `<li>${clue}</li>`).join('')}</ol>
+        <button class="button primary" id="start-mission">Start mission</button>
       </div>
-      <div class="mission-actions"><button id="rotate-part" class="button outline">Rotate 45°</button><output id="part-angle" aria-live="polite">0°</output><button class="button primary" id="fit-part">Fit Part</button></div>
-    </div>
-    <p id="fit-feedback" role="status"></p>
-  </div>
-  <div id="mission-complete" class="mission-panel" hidden><h2>Opportunity reassembled</h2><div class="mission-actions">
-    <a href="${link('collection')}" class="button primary">My Collection</a>
-    <a href="${link('opportunity')}" class="button outline">Open Exhibit</a>
-    <button id="replay" class="button outline">Replay Story</button>
-  </div></div>
-  </div><aside class="mission-sidebar">
-    <section id="navigation-tools" class="mission-panel"><h2>Map &amp; scanner</h2>
-      <div id="minimap" class="minimap" role="img" aria-label="Map of the crater rim"><span class="map-north">N ↑</span>
-        <span class="map-marker map-spires" title="Twin spires">S</span><span class="map-marker map-tracks" title="Wheel tracks">T</span>
-        <span id="map-wreck" class="map-marker map-wreck" title="Wreck" hidden>W</span><span id="map-player" class="map-marker map-player" title="Astra">A</span>
+      <div class="mission-actions"><button class="button outline" id="clues-button">Clues</button>
+        <button class="button outline" id="story-help" aria-controls="control-notes" aria-expanded="false">Controls</button></div>
+      <p id="control-notes" hidden>Move with WASD, the arrow keys, or the direction buttons. Drag to orbit and scroll or pinch to zoom. Press E to scan or inspect.</p>
+      <figure class="mission-portrait"><img src="${asset('astra-portrait.png')}" alt="Astra’s binocular head, long segmented neck, and draped body"><figcaption>Astra</figcaption></figure>
+    </aside>
+    <div class="mission-main">
+      <section class="mission-view" aria-label="Mission view">
+        <div class="scene-toolbar"><span id="scene-view-label">Terrain view</span>
+        <div class="scene-controls" aria-label="Camera controls">
+          <button data-camera="left" aria-label="Orbit left" title="Orbit left">${icon('left',18)}</button>
+          <button data-camera="right" aria-label="Orbit right" title="Orbit right">${icon('right',18)}</button>
+          <button data-camera="in" aria-label="Zoom in" title="Zoom in">${icon('plus',18)}</button>
+          <button data-camera="out" aria-label="Zoom out" title="Zoom out">${icon('minus',18)}</button>
+          <button data-camera="reset" aria-label="Reset view" title="Reset view">${icon('reset',18)}</button>
+        </div></div>
+        <div id="mission-stage">
+          <p id="scene-status" role="status">Loading 3D scene…</p>
+        </div>
+        <div class="scene-caption" role="status"><span>Solaris</span><p id="scene-caption"></p></div>
+      </section>
+      <div id="field-controls" class="mission-panel field-controls" hidden>
+        <div class="direction-pad" aria-label="Move Astra">
+          <button data-move="north" aria-label="Move north">${icon('up',18)}</button>
+          <button data-move="west" aria-label="Move west">${icon('back',18)}</button>
+          <button data-move="south" aria-label="Move south">${icon('lower',18)}</button>
+          <button data-move="east" aria-label="Move east">${icon('arrow',18)}</button>
+        </div>
+        <div class="field-actions"><div class="mission-actions">
+          <button class="button primary" id="scan">${icon('scan',18)} Scan</button>
+          <button class="button outline scanner-toggle" type="button" id="scanner-toggle" aria-controls="navigation-tools">Map &amp; scanner</button>
+          <button class="button outline" id="interact" disabled>Inspect part</button></div>
+          <p id="nearby"></p><p id="field-reading" role="status">Scan to take a reading.</p><p id="field-position"></p>
+        </div>
       </div>
-      <p class="map-legend">A Astra · S Twin spires · T Wheel tracks<span id="wreck-legend" hidden> · W Wreck</span></p>
-      <p id="position"></p><p id="signal">Scan to take a reading.</p>
-      <figure class="signal-figure"><canvas id="signal-chart" width="330" height="144" role="img" aria-label="Signal strength by distance. No samples yet."></canvas><figcaption>Signal (%) by distance (m) · cyan dots are scans</figcaption></figure>
-    </section>
-    <section class="mission-panel"><div class="mission-actions"><button class="button outline" id="clues-button">Clues</button><button class="button dark" id="talk-story">Talk to Solaris</button></div>
-      <h2>Inventory</h2><div class="inventory-wrap"><table aria-label="Inventory"><thead><tr><th>Part</th><th>Clue</th><th>State</th></tr></thead><tbody id="inventory"></tbody></table></div>
-    </section>
-  </aside></div>
-  <dialog class="story-dialog" id="story-notes" aria-labelledby="notes-title"><div class="dialog-heading"><h2 id="notes-title">Clues</h2><button class="close" data-close="story-notes" aria-label="Close clues">×</button></div>
-    <ol id="clue-log"></ol><p>Move with WASD, arrow keys, or the direction buttons. Press E to scan or inspect.</p></dialog>
-  <dialog class="story-dialog" id="story-solaris" aria-labelledby="solaris-title"><div class="dialog-heading"><h2 id="solaris-title">Solaris</h2><button class="close" data-close="story-solaris" aria-label="Close Solaris">×</button></div>
-    <button class="button primary" id="ask-hint">Request hint</button><p id="story-hint" role="status"></p><h3>Dialogue history</h3><ol id="dialogue-history"></ol></dialog>
-  <dialog class="story-dialog" id="story-cutscene" aria-labelledby="cutscene-title"><h2 id="cutscene-title">Stabilize the scanner</h2>
-    <p id="cutscene-copy">The rover is coming into view. Stabilize the scanner to finish the reveal.</p>
-    <p id="cutscene-time" aria-hidden="true"></p>
-    <div class="mission-actions"><button class="button primary" id="stabilize">Stabilize</button><button class="button outline" id="retry-cutscene" hidden>Retry</button><button class="button outline" id="untimed">Use untimed input</button></div>
+      <section id="mission-complete" class="mission-panel" hidden><h2>Opportunity reassembled</h2>
+        <div class="mission-actions">${routeLink('collection','My Collection','button primary',true)}
+        ${routeLink('opportunity','Open Exhibit','button outline')}
+        <button id="replay" class="button outline">Replay Story</button></div>
+      </section>
+    </div>
+    <aside class="mission-sidebar" id="mission-sidebar">
+      <section id="navigation-tools" class="mission-panel"><h2>Map &amp; scanner</h2>
+        <div id="minimap" class="minimap" role="img" aria-label="Map of the crater rim"><span class="map-north">N ↑</span>
+          <span class="map-marker map-spires" title="Twin spires">S</span><span class="map-marker map-tracks" title="Wheel tracks">T</span>
+          <span id="map-wreck" class="map-marker map-wreck" title="Wreck" hidden>W</span><span id="map-player" class="map-marker map-player" title="Astra">A</span>
+        </div>
+        <p class="map-legend">A Astra · S Twin spires · T Wheel tracks<span id="wreck-legend" hidden> · W Wreck</span></p>
+        <p id="position"></p><p id="signal">Scan to take a reading.</p>
+        <figure class="signal-figure"><canvas id="signal-chart" width="360" height="175" role="img" aria-label="Signal strength by distance. No samples yet."></canvas>
+          <figcaption>Signal (%) by distance (m). Dots mark scans. The ring follows Astra.</figcaption></figure>
+        <button class="button outline scanner-toggle" id="back-to-field" type="button">Back to controls</button>
+      </section>
+      <section id="workbench" class="mission-panel" hidden>
+        <h2>Workbench</h2><p>Match each part to a mount. Rotate it before fitting, or drag it onto the mount.</p>
+        <div id="assembly-controls"><div class="assembly-select">
+          <label>Part <select id="assembly-part"><option value="">Select a part</option>${missionSite.parts.map(part=>`<option value="${part.id}">${part.name}</option>`).join('')}</select></label>
+          <label>Mount <select id="assembly-mount"><option value="">Select a mount</option>${missionSite.mounts.map(mount=>`<option value="${mount.id}">${mount.name} · ${mount.direction} marker</option>`).join('')}</select></label>
+        </div><div class="mission-actions"><button id="rotate-part" class="button outline">Rotate 45°</button><output id="part-angle" aria-live="polite">0°</output>
+        <button class="button primary" id="fit-part">Fit Part</button></div></div>
+        <p id="fit-feedback" role="status"></p>
+      </section>
+      <section class="mission-panel" id="inventory-panel">
+        <h2>Inventory</h2><table aria-label="Inventory"><thead><tr><th scope="col">Part</th><th scope="col">Clue</th><th scope="col">State</th></tr></thead><tbody id="inventory"></tbody></table>
+      </section>
+    </aside>
+  </div>
+  <dialog class="story-dialog" id="story-notes" aria-labelledby="notes-title">
+    <div class="dialog-heading"><h2 id="notes-title">Clues</h2><span data-chat-slot></span><button class="close" data-close="story-notes" aria-label="Close clues">×</button></div>
+    <ol id="clue-log"></ol></dialog>
+  <dialog class="story-dialog cutscene-dialog" id="story-cutscene" aria-labelledby="cutscene-title">
+    <div class="dialog-heading"><h2 id="cutscene-title">Stabilize the scanner</h2><span data-chat-slot></span></div>
+    <p id="cutscene-copy"></p><p id="cutscene-time" class="coordinates"></p>
+    <div class="mission-actions"><button class="button primary" id="stabilize">Stabilize</button>
+      <button class="button outline" id="retry-cutscene" hidden>Retry</button><button class="button outline" id="untimed">Use untimed input</button></div>
   </dialog>
-  <dialog class="story-dialog" id="part-dialog" aria-labelledby="pickup-title"><div class="dialog-heading"><h2 id="pickup-title">Inspect part</h2><button class="close" data-close="part-dialog" aria-label="Close part inspection">×</button></div>
+  <dialog class="story-dialog" id="part-dialog" aria-labelledby="pickup-title">
+    <div class="dialog-heading"><h2 id="pickup-title">Inspect part</h2><span data-chat-slot></span><button class="close" data-close="part-dialog" aria-label="Close part inspection">×</button></div>
     <p id="pickup-clue"></p><button class="button primary" id="collect-part">Collect part</button></dialog>
   </article>`;
 }
 
-export function collectionMarkup() {
-  return `<article class="content page collection"><div class="inner-heading"><h1>My Collection</h1>
-  <p>Crafts you’ve assembled in Play Story.</p></div>
-  ${collectionHasRover()? `<section class="panel collection-card"><h2>Opportunity</h2><p>Reassembled in the fictional ${missionSite.name} mission.</p>
-  <div class="mission-actions"><a class="button primary" href="${link('opportunity')}" >Open Exhibit</a><a class="button outline" href="${link('story')}?replay=1">Replay Story</a></div></section>` :
-  `<p>Your collection is empty. Assemble Opportunity to add it here.</p><a class="button primary" href="${link('story')}">Play Story</a>`}</article>`;
-}
-
-export function mountStory() {
+export function mountStory(solaris: SolarisContext) {
   const $ = <T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
   let state=loadStory();
   if (new URLSearchParams(location.search).has('replay')) {
     state=startStory();
     saveStory(state);
-    history.replaceState(null,'',link('story'));
+    history.replaceState(null,'',location.pathname);
   }
   let selected:PartId|null=null, angle=0, inspection:PartId|null=null;
   let cutscene=false, cutMode:'timed'|'missed'|'untimed'='timed', timer=0, deadline=0;
-  let lastSave=0;
+  let lastSave=0, lastGraph=0;
+  let pausedForChat = false, timeRemaining = 0, transitioning = false;
   const keys=new Set<string>();
   const pointers=new Map<number,string>();
   const nav=$('navigation-tools'), stage=$('mission-stage');
@@ -111,37 +132,39 @@ export function mountStory() {
   const scanButton=$<HTMLButtonElement>('scan'), interact=$<HTMLButtonElement>('interact');
   const partSelect=$<HTMLSelectElement>('assembly-part'), mountSelect=$<HTMLSelectElement>('assembly-mount');
   const cutDialog=$<HTMLDialogElement>('story-cutscene'), partDialog=$<HTMLDialogElement>('part-dialog');
-  const notes=$<HTMLDialogElement>('story-notes'), solaris=$<HTMLDialogElement>('story-solaris');
+  const notes=$<HTMLDialogElement>('story-notes');
+  $('scanner-toggle').addEventListener('click',()=>{
+    nav.scrollIntoView({block:'start',behavior:'instant'});
+    $('back-to-field').focus({preventScroll:true});
+  });
+  $('back-to-field').addEventListener('click',()=>{
+    field.scrollIntoView({block:'end',behavior:'instant'});
+    $('scanner-toggle').focus({preventScroll:true});
+  });
   const chart=$<HTMLCanvasElement>('signal-chart');
-  const canWalk=()=>['search','locate','recover'].includes(state.phase)&&!document.querySelector('dialog[open]');
+  const canWalk=()=>['search','locate','recover'].includes(state.phase)&&!transitioning&&!document.querySelector('dialog[open]');
   const sceneState=()=>({save:state,selection:selected,angle,cutscene});
   let scene:ReturnType<typeof createStoryScene>|undefined;
-  try {
-    scene=createStoryScene(stage,{frame:move,pick:selectPart,mount:selectMountFromScene});
+  let lastFrame=0;
+  function runFallback(now: number) {
+    move(lastFrame ? Math.min(.05,(now-lastFrame)/1000) : 0);
+    lastFrame=now;
+    requestAnimationFrame(runFallback);
+  }
+  void loadOpportunity().then(hardware => {
+    scene=createStoryScene(stage,{frame:move,pick:selectPart,mount:selectMountFromScene},hardware);
     $('scene-status').hidden=true;
     scene.update(sceneState());
-  } catch {
-    $('scene-status').textContent='3D is unavailable. You can still use the map, scanner, and mission controls.';
-    requestAnimationFrame(function fallback(now){
-      move(lastFrame ? Math.min(.05,(now-lastFrame)/1000) : 0);
-      lastFrame=now;
-      requestAnimationFrame(fallback);
-    });
-  }
-  let lastFrame=0;
+  }).catch(() => {
+    $('scene-status').textContent='3D unavailable. Continue with the map and mission controls.';
+    stage.classList.add('scene-fallback');
+    requestAnimationFrame(runFallback);
+  });
 
-  function say(line:string) {
+  function say(line: string) {
     state.history.push(line);
-    state.history=state.history.slice(-30);
-    $('scene-caption').textContent='Solaris: '+line;
-    if(solaris.open) renderHistory();
-  }
-  function renderHistory(){
-    $('dialogue-history').replaceChildren(...state.history.map(line=>{
-      const li=document.createElement('li');
-      li.textContent=line;
-      return li;
-    }));
+    state.history = state.history.slice(-30);
+    $('scene-caption').textContent = line;
   }
   function setPhase(phase:Phase) {
     state.phase=phase;
@@ -170,6 +193,7 @@ export function mountStory() {
     const position=positionLabel(state.x,state.z);
     $('position').textContent='Astra · '+position;
     $('field-position').textContent=$('position').textContent;
+    if(performance.now()-lastGraph>125&&state.samples.length){ drawChart(); lastGraph=performance.now(); }
     $('minimap').setAttribute('aria-label',`Crater rim map. Astra at ${position}. S marks Twin spires and T marks Wheel tracks.${state.phase==='recover'?' W marks the wreck.':''}`);
     if(state.phase!=='recover')return;
     const part=nearestPart();
@@ -178,32 +202,44 @@ export function mountStory() {
     $('nearby').textContent=part?'Within reach':'Move within reach of a part.';
   }
   function drawChart(){
-    const context=chart.getContext('2d');
-    if(!context)return;
-    const w=chart.width,h=chart.height,left=36,bottom=h-24,top=14,right=w-12;
-    context.clearRect(0,0,w,h);
-    context.font='12px monospace';
-    context.fillStyle='#ede2ce';
-    context.strokeStyle='#726055';
+    const surface=chartSurface(chart);
+    if(!surface)return;
+    const {context,width:w,height:h,fontSize,color}=surface;
+    const left=fontSize*2.5+8,bottom=h-fontSize*2,top=fontSize,right=w-fontSize;
+    context.fillStyle=color('--muted');
+    context.strokeStyle=color('--soft-line');
     for(const y of [0,50,100]){
       const py=bottom-y/100*(bottom-top);
       context.fillText(String(y),2,py+3);
       context.beginPath();context.moveTo(left,py);context.lineTo(right,py);context.stroke();
     }
-    for(const x of [0,15,30,45,60]){
+    for(const x of (w < fontSize*24 ? [0,30,60] : [0,15,30,45,60])){
       const px=left+x/60*(right-left);
       context.fillText(String(x),px-5,h-6);
     }
-    context.fillStyle='#82eeea';
+    context.fillStyle=color('--cyan');
     for(const sample of state.samples){
       context.beginPath();
       context.arc(left+sample.distance/60*(right-left),bottom-sample.strength/100*(bottom-top),4,0,Math.PI*2);
       context.fill();
     }
+    if(state.samples.length) {
+      const range=distance(state.x,state.z,missionSite.wreck);
+      const strength=signalStrength(range);
+      context.strokeStyle=color('--cyan-strong'); context.lineWidth=2;
+      context.beginPath();context.arc(left+range/60*(right-left),bottom-strength/100*(bottom-top),6,0,Math.PI*2);
+      context.stroke(); context.lineWidth=1;
+    }
     chart.setAttribute('aria-label','Signal strength by distance. '+(state.samples.length?state.samples.map(s=>`${s.distance} m, ${s.strength}%`).join('; '):'No samples yet.'));
   }
+  new ResizeObserver(drawChart).observe(chart);
+  void document.fonts.ready.then(drawChart);
   function render(){
     $('objective').textContent=objectives[state.phase];
+    $('mission-layout').dataset.phase=state.phase;
+    $('scene-view-label').textContent=state.phase==='assemble'||state.phase==='complete'?'Workbench view':'Terrain view';
+    solaris.subject=cutscene?'Odyssey · Scanner stabilization':state.phase==='assemble'?'Odyssey · Workbench':`Odyssey · ${objectives[state.phase]}`;
+    solaris.selection=selected??undefined;
     $('progress').textContent=state.phase==='search'||state.phase==='locate'?`${state.observed.length}/2 observations`:state.phase==='recover'?`${state.collected.length}/3 recovered`:state.phase==='assemble'||state.phase==='complete'?`${state.fitted.length}/3 fitted`:'';
     briefing.hidden=state.phase!=='briefing';
     field.hidden=!['search','locate','recover'].includes(state.phase);
@@ -212,10 +248,11 @@ export function mountStory() {
     $('map-wreck').hidden=state.phase!=='recover';
     $('wreck-legend').hidden=state.phase!=='recover';
     workbench.hidden=state.phase!=='assemble';
+    $('inventory-panel').hidden=state.phase!=='recover'&&state.phase!=='assemble';
     $('mission-complete').hidden=state.phase!=='complete';
     $('inventory').innerHTML=missionSite.parts.map(p=>{
       const fitted=state.fitted.includes(p.id), collected=state.collected.includes(p.id);
-      return `<tr><th scope="row">${p.name}</th><td>${collected?p.clue:'—'}</td><td>${fitted?'✓ Fitted':collected?'✓ Collected':'Missing'}</td></tr>`;
+      return `<tr><th scope="row">${p.name}</th><td>${collected?p.clue:'—'}</td><td class="${fitted||collected?'part-ready':'part-missing'}">${fitted?'✓ Fitted':collected?'✓ Collected':'Missing'}</td></tr>`;
     }).join('');
     $('clue-log').innerHTML=[...initialClues,...state.observed.map(i=>missionSite.landmarks[i].clue),...state.collected.map(id=>partById(id)!.clue)].map(v=>`<li>${v}</li>`).join('');
     $('part-angle').textContent=angle+'°';
@@ -312,6 +349,8 @@ export function mountStory() {
   }
   scanButton.addEventListener('click',scan);
   $('start-mission').addEventListener('click',()=>{
+    $('control-notes').hidden=false;
+    $('story-help').setAttribute('aria-expanded','true');
     setPhase('search');say('Start at either landmark. I’ll compare the bearings as you scan.');
     commit();scanButton.focus();
   });
@@ -324,29 +363,56 @@ export function mountStory() {
     if(matchMedia('(prefers-reduced-motion: reduce)').matches) setCutMode('untimed');
     else setCutMode('timed');
   }
-  function setCutMode(mode:typeof cutMode){
+  function resumeTimer() {
+    clearInterval(timer);
+    deadline = performance.now() + timeRemaining;
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((deadline-performance.now())/1000));
+      if (!remaining) { setCutMode('missed'); return; }
+      $('cutscene-time').textContent=remaining+' s remaining';
+    };
+    tick();
+    if(cutMode==='timed')timer=window.setInterval(tick,100);
+  }
+
+  function setCutMode(mode: typeof cutMode) {
     clearInterval(timer);
     cutMode=mode;
+    cutDialog.dataset.mode=mode;
     $('retry-cutscene').hidden=mode!=='missed';
     $('untimed').hidden=mode==='untimed';
     $('stabilize').hidden=mode==='missed';
     $('cutscene-copy').textContent=mode==='missed'?'The signal slipped. Retry or switch to untimed input.':mode==='untimed'?'Select Stabilize when you’re ready.':'The rover is coming into view. Stabilize the scanner before the signal fades.';
     $('cutscene-time').textContent='';
     if(mode==='timed'){
-      deadline=performance.now()+8000;
-      const tick=()=>{
-        const remaining=Math.max(0,Math.ceil((deadline-performance.now())/1000));
-        if(!remaining){setCutMode('missed');return;}
-        $('cutscene-time').textContent=remaining+' s remaining';
-      };
-      tick();timer=window.setInterval(tick,100);
+      timeRemaining=8000;
+      if(!pausedForChat)resumeTimer();
     }
-    $(mode==='missed'?'retry-cutscene':'stabilize').focus();
+    $(mode==='missed'?'retry-cutscene':'stabilize').focus({preventScroll:true});
   }
+
+  solaris.pause = paused => {
+    pausedForChat=paused;
+    if(paused){
+      stopMovement();
+      if(cutscene&&cutMode==='timed'){
+        timeRemaining=Math.max(1,deadline-performance.now());
+        clearInterval(timer);
+        $('cutscene-time').textContent='Paused for Solaris';
+      }
+    }else if(cutscene&&cutMode==='timed')resumeTimer();
+  };
+  solaris.mission = () => ({
+    phase:state.phase, observed:[...state.observed], collected:[...state.collected],
+    fitted:[...state.fitted], hints:state.hints, attempts:state.attempts,
+    selection:selected??undefined, cutscene,
+  });
+  solaris.history=()=>state.history;
   $('stabilize').addEventListener('click',()=>{
+    if(pausedForChat)return;
     if(cutMode==='timed'&&performance.now()>deadline){setCutMode('missed');return;}
     clearInterval(timer);cutscene=false;cutDialog.close();setPhase('recover');
-    say('Scanner locked. Three pieces are scattered around the wreck. Walk up to each to inspect it.');
+    say('Signal locked. The impact scattered three parts around the wreck. Walk up to each to inspect it.');
     commit();scanButton.focus();
   });
   $('retry-cutscene').addEventListener('click',()=>setCutMode('timed'));
@@ -366,16 +432,22 @@ export function mountStory() {
   $('collect-part').addEventListener('click',()=>{
     const part=partById(inspection);
     if(!part||state.collected.includes(part.id)||distance(state.x,state.z,part.position)>missionSite.reach)return;
-    state.collected.push(part.id);inspection=null;partDialog.close();
+    state.collected.push(part.id);
+    inspection=null;
+    partDialog.close();
     scene?.pickup(part.id);
     say(part.name+' recovered. '+part.clue);
-    if(state.collected.length===missionSite.parts.length){
-      setPhase('assemble');
-      say('All parts accounted for. Use the clues to fit them at the workbench.');
+    if(state.collected.length!==missionSite.parts.length){
+      commit();scanButton.focus();return;
     }
+    transitioning=true;
     commit();
-    if(state.collected.length===missionSite.parts.length)partSelect.focus();
-    else scanButton.focus();
+    window.setTimeout(()=>{
+      setPhase('assemble');
+      transitioning=false;
+      say('All parts recovered. Let’s see how they fit together.');
+      commit();if(!document.querySelector('dialog[open]'))partSelect.focus();
+    },scene&&!matchMedia('(prefers-reduced-motion: reduce)').matches?530:0);
   });
 
   function selectPart(id:PartId|null){
@@ -394,17 +466,19 @@ export function mountStory() {
     if(state.phase!=='assemble')return;
     const part=partById(selected);
     const mount=missionSite.mounts.find(m=>m.id===mountSelect.value);
-    if(!part||!mount){$('fit-feedback').textContent='Choose a part and a mount.';return;}
+    if(!part||!mount){$('fit-feedback').textContent='Choose a part and a mount.';$('fit-feedback').classList.add('warning');return;}
     if(part.mount!==mount.id||angleDistance(angle,part.angle)>missionSite.tolerance){
       state.attempts++;
       const message=part.mount!==mount.id?`${part.name} doesn’t fit the ${mount.name.toLowerCase()}. ${part.clue}`:`${part.name} belongs here. Rotate it toward the ${mount.direction} marker.`;
       $('fit-feedback').textContent=message;
+      $('fit-feedback').classList.add('warning');
       say(message);commit();
       return;
     }
     state.fitted.push(part.id);selected=null;angle=0;mountSelect.value='';
     scene?.fit(part.id);
     $('fit-feedback').textContent=part.name+' fitted.';
+    $('fit-feedback').classList.remove('warning');
     if(state.fitted.length===missionSite.parts.length){
       setPhase('complete');
       scene?.complete();
@@ -430,6 +504,7 @@ export function mountStory() {
 
   function hint(){
     const detailed=state.hints>0||state.attempts>1;
+    if(cutscene)return cutMode==='missed'?'Retry the scanner, or choose untimed input.':'Select Stabilize when you’re ready. You can switch to untimed input from the scanner prompt.';
     if(state.phase==='search'){
       const landmark=missionSite.landmarks.find((_,i)=>!state.observed.includes(i))!;
       return detailed?`Go to ${landmark.name} at ${positionLabel(...landmark.position)}. Get within 2.4 m and scan.`:'The map marks two landmarks. Take one reading at each.';
@@ -446,19 +521,22 @@ export function mountStory() {
     }
     return state.phase==='complete'?'Open My Collection to see the finished rover.':'Start the mission and use the map to find the two landmarks.';
   }
-  $('ask-hint').addEventListener('click',()=>{
-    const line=hint();state.hints++;
-    $('story-hint').textContent=line;say(line);commit();
-  });
+  solaris.hint=()=>{
+    const line=hint();
+    state.hints++;say(line);commit();
+    return line;
+  };
   $('clues-button').addEventListener('click',()=>{stopMovement();notes.showModal();});
-  $('talk-story').addEventListener('click',()=>{
-    stopMovement();$('story-hint').textContent='';renderHistory();solaris.showModal();
+  $('story-help').addEventListener('click',()=>{
+    const controls=$('control-notes');
+    controls.hidden=!controls.hidden;
+    $('story-help').setAttribute('aria-expanded',String(!controls.hidden));
   });
   for(const button of document.querySelectorAll<HTMLButtonElement>('[data-close]')){
     button.addEventListener('click',()=>$<HTMLDialogElement>(button.dataset.close!).close());
   }
   if(!state.history.length)say('Astra, we have a signal near the crater rim. Review the clues before heading out.');
-  else $('scene-caption').textContent='Solaris: '+state.history.at(-1);
+  else $('scene-caption').textContent=state.history.at(-1)!;
   const last=state.samples.at(-1);
   if(last)showReading(`Last scan · ${last.distance} m · signal ${last.strength}%`);
   commit();

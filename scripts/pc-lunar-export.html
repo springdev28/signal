@@ -1,0 +1,9 @@
+<!doctype html><title>Lunar rover GLB authoring</title><script type="module">
+import * as THREE from 'three';import {GLTFExporter}from'three/addons/exporters/GLTFExporter.js';import{createLunarRover}from'/src/lunar-model.ts';
+window.exportLunar=async()=>{
+const rover=createLunarRover(),mounts=[];
+async function save(name,mesh){const data=await new GLTFExporter().parseAsync(mesh,{binary:true});const bytes=new Uint8Array(data);let binary='';for(let i=0;i<bytes.length;i+=32768)binary+=String.fromCharCode(...bytes.subarray(i,i+32768));await window.saveModel(name,btoa(binary));}
+for(const [id,group,angle]of[['camera','antenna',0],['solar','equipment',90],['wheel','wheel',180]]){
+ const part=rover.children.find(n=>n.userData.instrument===group);rover.updateMatrixWorld(true);const pivot=new THREE.Box3().setFromObject(part).getCenter(new THREE.Vector3());mounts.push(pivot.toArray());const copy=part.clone();copy.position.sub(pivot);const parent=new THREE.Group();parent.add(copy);parent.rotation.y=-angle*Math.PI/180;await save('lunar-'+id+'.glb',parent);part.removeFromParent();
+}await save('lunar-frame.glb',rover);await window.saveModel('lunar-mounts.json',btoa(JSON.stringify(mounts)));return mounts;};
+</script>

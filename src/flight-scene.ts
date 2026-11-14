@@ -91,5 +91,5 @@ export function createFlightScene(host:HTMLElement,radar:HTMLCanvasElement){
     renderer.render(scene,camera);
     host.dataset.bank=bank.toFixed(3);host.dataset.hatch=hatch.toFixed(2);host.dataset.thrust=throttle.toFixed(2);
   }
-  return {draw,toggleCamera(){exterior=!exterior;return exterior;},exitPosition:()=>({x:astra.model.position.x,z:astra.model.position.z}),dispose(){observer.disconnect();renderer.dispose();host.querySelector('canvas')?.remove();},resetLook(){lookX=lookY=0;}};
+  return {draw,toggleCamera(){exterior=!exterior;return exterior;},exitPosition:()=>({x:astra.model.position.x,z:astra.model.position.z}),dispose(){astra.dispose();observer.disconnect();renderer.dispose();host.querySelector('canvas')?.remove();},resetLook(){lookX=lookY=0;}};
 }

@@ -185,5 +185,5 @@ export async function mountSurface(world: WorldId, context: SolarisContext) {
     animation=requestAnimationFrame(draw);
   }
   host.querySelector('.view-state')!.remove();host.classList.add('view-ready');start=performance.now();draw(start);
-  window.addEventListener('pagehide',()=>{save();cancelAnimationFrame(animation);controls.dispose();renderer.dispose();},{once:true});
+  window.addEventListener('pagehide',()=>{save();cancelAnimationFrame(animation);astra.dispose();controls.dispose();renderer.dispose();},{once:true});
 }

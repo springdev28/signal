@@ -1,0 +1,3 @@
+import {chromium} from '@playwright/test';
+const browser=await chromium.launch({executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',args:['--enable-unsafe-swiftshader']});
+try{const page=await browser.newPage({viewport:{width:1400,height:1000}});page.on('pageerror',e=>console.log('PAGEERROR',e.stack));page.on('console',m=>{if(m.type()==='error'||m.type()==='warn')console.log('CONSOLE',m.text());});await page.goto('http://127.0.0.1:5173/scripts/astra-study.html');await page.waitForTimeout(7000);console.log(await page.evaluate(()=>({ready:document.body.dataset.ready,rig:window.astraStudy?.astra.inspectRig()})));await page.screenshot({path:'artifacts/astra-detail/imported-first.png'});}finally{await browser.close();}

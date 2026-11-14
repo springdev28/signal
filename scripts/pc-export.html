@@ -1,0 +1,40 @@
+<!doctype html><title>Signal asset authoring</title><script type="module">
+import * as THREE from 'three';
+import {GLTFExporter} from 'three/addons/exporters/GLTFExporter.js';
+import {createAstra} from '/src/astra.ts';
+import {createShip} from '/src/ship.ts';
+import {loadOpportunity} from '/src/hardware.ts';
+import {createLunarRover} from '/src/lunar-model.ts';
+window.exportModels = async () => {
+ const astra=createAstra();await astra.ready;await new Promise(r=>setTimeout(r,1200));
+ let i=0;astra.model.traverse(n=>{if(!n.name)n.name='Astra_node_'+i;i++;});
+ const nodes=[];astra.model.traverse(n=>nodes.push(n));let elapsed=0;
+ const clips=[];
+ for(const [name,walking,action] of [['Idle',0,'idle'],['Walk',1,'idle'],['Recover',0,'pickup'],['Talk',0,'talk']]){
+  const values=nodes.map(()=>({p:[],q:[],s:[]})),times=[];
+  for(let f=0;f<=48;f++){
+   const t=f/24;elapsed+=1/24;astra.pose(elapsed,walking,action,action==='pickup'?Math.sin(Math.PI*f/48):1);
+   times.push(t);nodes.forEach((n,j)=>{values[j].p.push(...n.position.toArray());values[j].q.push(...n.quaternion.toArray());values[j].s.push(...n.scale.toArray());});
+  }
+  const tracks=nodes.flatMap((n,j)=>[new THREE.VectorKeyframeTrack(n.uuid+'.position',times,values[j].p),new THREE.QuaternionKeyframeTrack(n.uuid+'.quaternion',times,values[j].q),new THREE.VectorKeyframeTrack(n.uuid+'.scale',times,values[j].s)]);
+  clips.push(new THREE.AnimationClip(name,2,tracks));
+ }
+ astra.pose(elapsed+.016,0,'idle',0);
+ async function save(name,model,animations=[]){
+  const converted=new Map();
+  model.traverse(n=>{if(!n.isMesh)return;for(const m of (Array.isArray(n.material)?n.material:[n.material]))for(const key of ['map','roughnessMap','metalnessMap','normalMap','emissiveMap','alphaMap','aoMap']){const tex=m[key];if(!tex?.image?.data)continue;if(!converted.has(tex)){const {width,height,data}=tex.image,c=document.createElement('canvas');c.width=width;c.height=height;const g=c.getContext('2d'),pixels=g.createImageData(width,height),channels=data.length/(width*height);for(let k=0;k<width*height;k++){for(let j=0;j<3;j++)pixels.data[k*4+j]=data[k*channels+Math.min(j,channels-1)];pixels.data[k*4+3]=channels===4?data[k*4+3]:255;}g.putImageData(pixels,0,0);const t=new THREE.CanvasTexture(c);t.colorSpace=tex.colorSpace;t.flipY=tex.flipY;t.wrapS=tex.wrapS;t.wrapT=tex.wrapT;t.repeat.copy(tex.repeat);converted.set(tex,t);}m[key]=converted.get(tex);}});
+  model.updateMatrixWorld(true);
+  const data=await new GLTFExporter().parseAsync(model,{binary:true,animations,onlyVisible:true,maxTextureSize:1024});
+  const bytes=new Uint8Array(data);let binary='';for(let start=0;start<bytes.length;start+=32768)binary+=String.fromCharCode(...bytes.subarray(start,start+32768));
+  await window.saveModel(name,btoa(binary));
+ }
+ await save('astra.glb',astra.model,clips);astra.dispose();
+ const craft=createShip();craft.hatch.name='Ship_hatch';craft.jets.forEach((n,i)=>n.name='Thrust_'+i);craft.downJets.forEach((n,i)=>n.name='Landing_thrust_'+i);
+ await save('ship.glb',craft.ship);
+ const rover=await loadOpportunity();
+ await save('mer-frame.glb',rover.frame());
+ for(const id of ['camera','solar','wheel'])await save('mer-'+id+'.glb',rover.part(id));
+ await save('lunar-rover.glb',createLunarRover());
+ return 'done';
+};
+</script>

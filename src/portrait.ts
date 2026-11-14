@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { createAstra } from './astra';
 import { addLighting } from './scene';
 
-export function renderAstraPortrait(host: HTMLElement) {
+export async function renderAstraPortrait(host: HTMLElement) {
   const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
   renderer.setSize(560, 740);
   renderer.setClearColor(0, 0);
@@ -13,7 +13,10 @@ export function renderAstraPortrait(host: HTMLElement) {
   const sun = new THREE.DirectionalLight(0xf4ad70, 3);
   sun.position.set(-1, 2, 2);
   scene.add(sun);
-  const { model } = createAstra();
+  const astra = createAstra();
+  const { model } = astra;
+  await astra.ready;
+  astra.pose(0,false,'idle',0);
   model.rotation.y = .23;
   scene.add(model);
   const camera = new THREE.PerspectiveCamera(28, 560 / 740, .05, 50);

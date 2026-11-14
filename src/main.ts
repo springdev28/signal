@@ -36,12 +36,12 @@ const query = new URLSearchParams(location.search);
 if(page==='story'&&query.has('replay')){
   saveStory(startStory());
   resetFlight();
-  history.replaceState(null,'',location.pathname);
+  if(query.get('chapter')!=='moon')history.replaceState(null,'',location.pathname+'?replay=1');
 }
 const surface = (page === 'moon' || page === 'mars') && query.has('surface');
 const orbital = page === 'home' || page === 'atlas';
 const flight=page==='story'&&!query.has('deploy')&&loadStory().phase==='briefing';
-document.body.dataset.interface = orbital ? 'orbit' : flight?'flight':surface ? 'surface' : page === 'story' ? 'mission' : ['moon','mars'].includes(page) ? 'world' : ['opportunity','lunar','collection'].includes(page) ? 'hardware' : 'reading';
+document.body.dataset.interface = page==='story'?'playcanvas':orbital ? 'orbit' : surface ? 'surface' : ['moon','mars'].includes(page) ? 'world' : ['opportunity','lunar','collection'].includes(page) ? 'hardware' : 'reading';
 const app = document.querySelector<HTMLDivElement>('#app')!;
 const wordmark = `<a class="wordmark" href="${link('home')}" aria-label=">_signal home"><img class="brand-art" src="${base}brand/signal-wordmark.svg" alt="" width="274" height="76"></a>`;
 
@@ -61,7 +61,7 @@ async function content() {
     case 'opportunity': case 'lunar': return hardwareExhibit(page);
     case 'experiment': return experimentMarkup();
     case 'collection': return (await import('./collection')).collectionMarkup();
-    case 'story': return `<div id="ground-story" ${flight?'hidden':''}>${(await import('./story')).storyMarkup()}</div>${flight?(await import('./flight')).flightMarkup():''}`;
+    case 'story': return (await import('./odyssey/game')).odysseyMarkup();
   }
 }
 
@@ -126,15 +126,7 @@ if (orbital) {
   case 'opportunity': case 'lunar': mountExhibit(page, context); break;
   case 'experiment': mountExperiment(context); break;
   case 'story':
-    if(flight){
-      void import('./hardware').then(module=>module.loadOpportunity()).catch(()=>undefined);
-      (await import('./flight')).mountFlight(context,()=>{
-        void import('./story').then(module=>{
-          document.body.dataset.interface='mission';module.mountStory(context);
-          document.querySelector('#ground-story')!.removeAttribute('hidden');
-        });
-      });
-    }else (await import('./story')).mountStory(context);
+    await (await import('./odyssey/game')).mountOdyssey(context);
     break;
   case 'collection': (await import('./collection')).mountCollection(); break;
 }

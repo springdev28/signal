@@ -1,0 +1,135 @@
+import * as pc from 'playcanvas';
+import {base,asset,link,sources} from '../catalog';
+import type {SolarisContext} from '../solaris';
+import {fresh,load,persist,scan,lockable,award,landing,saveKey,type Chapter,type Contact} from './state';
+import {color,height,landscape,material,model,primitive,beam} from './world';
+import {cockpit} from './cockpit';
+import './odyssey.css';
+
+export function odysseyMarkup(){return `<section id="pc-odyssey" aria-label="Odyssey flight and surface simulation">
+ <canvas id="pc-canvas" tabindex="0" aria-label="Pilot the ship with A and D. W and S change throttle. E scans. L locks a contact. H opens controls."></canvas>
+ <p id="pc-loading" role="status">Preparing the flight deck…</p><h1 class="sr-only">Odyssey</h1>
+ <div id="pc-objective" aria-live="polite"></div><div id="pc-caption" aria-live="polite"></div><div id="pc-hit-layer"></div>
+ <button id="pc-waypoint" class="pc-waypoint" hidden></button><button id="pc-interact" class="pc-context" hidden></button>
+ <button id="pc-record-button" class="pc-record-button" aria-label="Mission record and controls">Record <span>M</span></button>
+ <div id="pc-touch" aria-label="Steering"><button data-drive="left" aria-label="Steer left">‹</button><button data-drive="forward" aria-label="Move forward">↑</button><button data-drive="right" aria-label="Steer right">›</button><button data-drive="back" aria-label="Move backward">↓</button></div>
+ <div id="pc-height"><button data-drive="rise" aria-label="Increase altitude">↑</button><button data-drive="fall" aria-label="Decrease altitude">↓</button></div>
+ <dialog id="pc-record" aria-labelledby="pc-record-title"><div class="dialog-bar"><h2 id="pc-record-title">Mission record</h2><button id="pc-record-close" aria-label="Close mission record">×</button></div><div id="pc-record-body"></div></dialog>
+ <section id="pc-bench" hidden aria-label="Assembly controls"><div class="pc-bench-heading"><h2>Workbench</h2><button id="pc-bench-close" aria-label="Close workbench controls">×</button></div><p id="pc-fit-clue"></p><label>Recovered part<select id="pc-part"></select></label><label>Mount<select id="pc-mount"><option value="mast">Mast</option><option value="deck">Deck</option><option value="axle">Right axle</option></select></label><div class="pc-fit-row"><button id="pc-rotate">Rotate 45°</button><output id="pc-angle">0°</output><button id="pc-fit">Fit part</button></div><p id="pc-feedback" aria-live="polite"></p></section>
+ <div id="pc-cutscene" hidden></div><div id="pc-completion" hidden><h2>Reconstruction complete</h2><a href="${link('collection')}" class="button primary">My Collection</a><a href="${link('story')}?replay=1" class="button">New flight</a></div>
+ </section>`;}
+
+export async function mountOdyssey(context:SolarisContext){
+ const host=document.querySelector<HTMLElement>('#pc-odyssey')!,canvas=host.querySelector<HTMLCanvasElement>('#pc-canvas')!;
+ const $=<T extends HTMLElement=HTMLElement>(s:string)=>host.querySelector<T>(s)!;
+ const query=new URLSearchParams(location.search),chapter:Chapter=query.get('chapter')==='moon'?'moon':'mars';
+ let state=query.has('replay')?fresh(chapter):load(chapter);persist(state);query.delete('replay');history.replaceState(null,'',location.pathname+(query.size?'?'+query:''));
+ let app:pc.AppBase;
+ try{const device=await pc.createGraphicsDevice(canvas,{deviceTypes:[pc.DEVICETYPE_WEBGL2],antialias:true,alpha:false});device.maxPixelRatio=1;
+ const options=new pc.AppOptions();options.graphicsDevice=device;options.componentSystems=[pc.RenderComponentSystem,pc.CameraComponentSystem,pc.LightComponentSystem,pc.AnimComponentSystem];options.resourceHandlers=[pc.TextureHandler,pc.ContainerHandler,pc.JsonHandler,pc.AnimClipHandler];
+ app=new pc.AppBase(canvas);app.init(options);app.setCanvasFillMode(pc.FILLMODE_NONE);app.setCanvasResolution(pc.RESOLUTION_AUTO);
+ }catch{$('#pc-loading').innerHTML=`3D flight is unavailable on this device. <a href="${link(chapter)}">Explore ${chapter==='moon'?'the Moon':'Mars'}</a>`;return;}
+ const moon=chapter==='moon';app.scene.ambientLight=color(moon?0x3b4555:0x647d99);app.scene.exposure=1.12;app.scene.fog.type=moon?pc.FOG_NONE:pc.FOG_LINEAR;app.scene.fog.color=color(0x8f7168);app.scene.fog.start=85;app.scene.fog.end=450;
+ const camera=new pc.Entity('Pilot / Astra camera');camera.addComponent('camera',{fov:64,nearClip:.05,farClip:900,clearColor:color(moon?0x030810:0x5c646e),toneMapping:pc.TONEMAP_ACES,gammaCorrection:pc.GAMMA_SRGB});app.root.addChild(camera);
+ const sun=new pc.Entity('Low directional sun');sun.addComponent('light',{type:'directional',color:color(moon?0xe4efff:0xffd6b2),intensity:moon?2.7:2,castShadows:true,shadowDistance:190,shadowResolution:2048,normalOffsetBias:.12,shadowBias:.15,numCascades:3});sun.setEulerAngles(43,137,0);app.root.addChild(sun);
+ const rim=new pc.Entity('Cool reflected skylight');rim.addComponent('light',{type:'directional',color:color(0x80b6d7),intensity:.6});rim.setEulerAngles(24,-42,0);app.root.addChild(rim);
+ const cockpitView=cockpit(app,camera,$('#pc-hit-layer'));
+ const resize=()=>{app.resizeCanvas(innerWidth,innerHeight);};resize();window.addEventListener('resize',resize);
+ let time=0,throttle=0,speed=0,turn=0,paused=false,captionUntil=0,objectiveUntil=0,selected=0,phaseTime=0,stabilized=false,untimed=false,failed=false,playerHeading=0,motion='Idle',pickIndex=-1,partAngle=0,benchYaw=-.55,benchPitch=.38,benchDistance=12;
+ const keys=new Set<string>(),down=new Set<string>();const target=new pc.Vec3(),camTarget=new pc.Vec3();let modelReady=false;
+ let astra:pc.Entity,ship:pc.Entity,frame:pc.Entity;const parts:pc.Entity[]=[],benchParts:pc.Entity[]=[];const benchRoot=new pc.Entity('Surface assembly workbench');app.root.addChild(benchRoot);benchRoot.enabled=false;
+ const dustRoot=new pc.Entity('Touchdown dust');app.root.addChild(dustRoot);const dust:pc.Entity[]=[];
+ const dustMat=material(moon?0x9298a4:0xc28b65);dustMat.opacity=.24;dustMat.blendType=pc.BLEND_NORMAL;dustMat.depthWrite=false;dustMat.update();for(let i=0;i<24;i++){const d=primitive(dustRoot,'Dust puff','sphere',[0,-20,0],[1,1,1],dustMat);d.render!.castShadows=false;dust.push(d);}dustRoot.enabled=false;
+ function say(text:string){$('#pc-caption').textContent=text;captionUntil=time+Math.max(4,Math.min(7,text.length/16));state.history.push(text);state.history=state.history.slice(-30);persist(state);}
+ function objective(text:string,duration=5){$('#pc-objective').textContent=text;objectiveUntil=time+duration;}
+ const current=()=>state.contacts[selected];const flying=()=>['flight','approach'].includes(state.stage);const walking=()=>['walk','recovery'].includes(state.stage);
+ function setStage(stage:typeof state.stage){state.stage=stage;phaseTime=0;persist(state);host.dataset.stage=stage;}
+ function animate(name:string){if(!astra?.anim||motion===name)return;astra.anim.baseLayer?.transition(name,.22);motion=name;}
+ function moveToBench(){setStage('assembly');benchRoot.enabled=true;astra.setPosition(4,height(0,-83)+1,-84);astra.setEulerAngles(0,65,0);$('#pc-bench').hidden=false;$('#pc-interact').hidden=true;selectPart(0);say('The recovered markings show where each assembly belongs.');}
+ function scanNow(){if(!flying()||state.stage==='approach'||!modelReady)return;let found=0,result='';
+  for(const c of state.contacts){if(c.locked)continue;const dx=c.x-state.x,dz=c.z-state.z,a=state.heading*Math.PI/180,d=Math.hypot(dx,dz);if(d>300||(dx*Math.sin(a)-dz*Math.cos(a))/d<.25)continue;const r=scan(state,c);if(r!=='same')found++;if(c===current())result=r;}
+  animate('Talk');if(!found){say(result==='same'?'The bearing repeats. Fly at least twelve metres to get another angle.':'Turn toward the sunlit spire, then scan the canyon.');return;}
+  say(current().samples.length===1?'A rough return beneath the spire. Fly across the canyon and scan again.':lockable(current())?'The bearings agree. You can lock this contact.':'The return is narrowing. Move farther across the canyon for a stronger baseline.');
+ }
+ function lockNow(){if(!flying()||!lockable(current())||current().locked)return;current().locked=true;say(`${current().name} pinned. That location will stay with us on the surface.`);selected=state.contacts.findIndex(c=>!c.locked);if(selected<0){selected=0;setStage('approach');say('Three pins saved. Follow the tracks to the clear landing shelf.');}persist(state);}
+ function beginDescent(){if(state.stage!=='approach')return;if(Math.hypot(state.x-landing.x,state.z-landing.z)>18||state.altitude>12||speed>9){say('Bring us over the shelf, below twelve metres and nine metres per second.');return;}setStage('descent');stabilized=false;failed=false;untimed=false;throttle=0;say('Crosswind. Hold the stabilizer when the light turns amber.');}
+ function stabilize(){if(state.stage==='descent'&&!failed&&phaseTime>=1){stabilized=true;say('Descent steady.');}}
+ function interact(){if(state.stage==='approach')return beginDescent();if(state.stage==='descent')return stabilize();if(state.stage==='landed'){setStage('exit');say('Hatch open. The pins are on your visor.');return;}
+  if(state.stage==='walk'){const i=state.contacts.findIndex(c=>c.locked&&!c.recovered&&Math.hypot(c.x-state.playerX,c.z-state.playerZ)<3.4);if(i>=0){pickIndex=i;setStage('recovery');animate('Recover');say(state.contacts[i].clue);}}
+  if(state.stage==='assembly')$('#pc-bench').hidden=!$('#pc-bench').hidden;
+ }
+ function selectPart(index:number){selected=index;partAngle=0;$('#pc-angle').textContent='0°';$('#pc-fit-clue').textContent=current().clue;$('#pc-feedback').textContent='';$('#pc-part').innerHTML=state.contacts.map((c,i)=>`<option value="${i}" ${i===index?'selected':''}>${c.name}${c.fitted?' · fitted':''}</option>`).join('');}
+ const mountPoints=moon?[[-.16433,1.35368,-.0164],[0,.7825,-.00575],[0,.44363,-.01543]]:[[0,1.137,-.605],[0,1.126,0],[.797,.214,.175]];
+ const seating=new Map<number,{t:number;from:pc.Vec3}>();
+ function fitPart(){const c=current();if(c.fitted)return;const mount=$<HTMLSelectElement>('#pc-mount').value;if(mount!==c.mount){$('#pc-feedback').textContent='That mount does not match this part’s function. Read its marking.';return;}if(Math.abs(((partAngle-c.angle+540)%360)-180)>5){$('#pc-feedback').textContent='The mount is right. Rotate the part to align its keyed edge.';return;}c.fitted=true;seating.set(selected,{t:0,from:benchParts[selected].getLocalPosition().clone()});$('#pc-feedback').textContent=c.name+' seated.';animate('Recover');persist(state);if(state.contacts.every(c=>c.fitted)){award(chapter);setStage('complete');$('#pc-bench').hidden=true;$('#pc-completion').hidden=false;say('Every part has its place. Your reconstruction is saved in My Collection.');}else{const next=state.contacts.findIndex(c=>!c.fitted);setTimeout(()=>selectPart(next),950);}}
+ function openRecord(){const d=$<HTMLDialogElement>('#pc-record');$('#pc-record-body').innerHTML=`<p class="pc-record-lead">The last recovered image placed the hardware below a lit stone spire. Tracks lead toward a clear shelf. Use separated bearings to resolve the returns.</p><p>Fictional recovery expedition · ${moon?'Moon':'Mars'}</p><h3>Flight</h3><dl><dt>A / D or ← / →</dt><dd>Steer</dd><dt>W / S</dt><dd>Throttle up / down</dd><dt>U / J</dt><dd>Climb / descend</dd><dt>Space</dt><dd>Brake</dd><dt>E / L</dt><dd>Scan / lock</dd><dt>C</dt><dd>Next radar contact</dd></dl><h3>On foot</h3><p>WASD or the touch arrows move Astra. Drag to look. E recovers a nearby part. At the workbench, drag the model to orbit and use the keyed fit controls.</p><h3>Saved pins</h3><table><tbody>${state.contacts.map(c=>`<tr><th>${c.name}</th><td>${c.locked?c.x+' E / '+(-c.z)+' N':c.samples.length?'±'+c.radius.toFixed(1)+' m':'No return'}</td></tr>`).join('')}</tbody></table><h3>Chapters</h3><p><a href="${link('story')}?chapter=mars">Mars · Opportunity</a> · <a href="${link('story')}?chapter=moon">Moon · Lunar rover</a></p><p><a href="${moon?sources.lunarRover:sources.mer}" target="_blank" rel="noreferrer">NASA mission record</a> · <a href="${link('atlas')}">Browse Omnecarta</a></p><p>Terrain and recovery clues are authored reconstructions. The artifacts are based on the supplied NASA records.</p>`;d.showModal();paused=true;}
+ $('#pc-record-button').onclick=openRecord;$('#pc-record-close').onclick=()=>$<HTMLDialogElement>('#pc-record').close();$('#pc-record').addEventListener('close',()=>{paused=false;canvas.focus();});$('#pc-bench-close').onclick=()=>$('#pc-bench').hidden=true;
+ $('#pc-part').onchange=()=>selectPart(Number($<HTMLSelectElement>('#pc-part').value));$('#pc-rotate').onclick=()=>{partAngle=(partAngle+45)%360;$('#pc-angle').textContent=partAngle+'°';};$('#pc-fit').onclick=fitPart;$('#pc-interact').onclick=interact;
+ cockpitView.buttons.scan.onclick=scanNow;cockpitView.buttons.lock.onclick=lockNow;cockpitView.lever.oninput=()=>throttle=Number(cockpitView.lever.value);
+ let drag=false,lastX=0,lastY=0;canvas.addEventListener('pointerdown',e=>{drag=true;lastX=e.clientX;lastY=e.clientY;canvas.setPointerCapture(e.pointerId);canvas.focus();});canvas.addEventListener('pointerup',()=>drag=false);canvas.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;if(['assembly','complete'].includes(state.stage)){benchYaw-=dx*.007;benchPitch=Math.max(.08,Math.min(.85,benchPitch+dy*.005));}else if(walking())playerHeading-=dx*.28;else if(flying())state.heading+=dx*.15;});canvas.addEventListener('wheel',e=>{if(['assembly','complete'].includes(state.stage)){e.preventDefault();benchDistance=Math.max(7,Math.min(20,benchDistance+e.deltaY*.01));}},{passive:false});
+ window.addEventListener('keydown',e=>{if((e.target as HTMLElement).matches('input,select,textarea')||paused)return;const k=e.key.toLowerCase();if(['arrowleft','arrowright','arrowup','arrowdown',' ','w','a','s','d','u','j','e','l','c','h','m'].includes(k))e.preventDefault();keys.add(k);if(e.repeat)return;if(k==='e')flying()&&state.stage==='flight'?scanNow():interact();if(k==='l')lockNow();if(k==='c'&&flying())selected=(selected+1)%3;if(k==='m'||k==='h')openRecord();});window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>{keys.clear();down.clear();});
+ for(const b of host.querySelectorAll<HTMLButtonElement>('[data-drive]')){b.addEventListener('pointerdown',e=>{b.setPointerCapture(e.pointerId);down.add(b.dataset.drive!);});for(const event of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(event,()=>down.delete(b.dataset.drive!));}
+ context.subject=`Odyssey · ${moon?'Moon':'Mars'} recovery`;context.pause=p=>{paused=p;keys.clear();down.clear();};context.history=()=>state.history;context.hint=()=>flying()?(current().samples.length?'Fly across the canyon for another bearing. Lock the return once its uncertainty is under five metres.':'The last frame shows a sunlit spire. Face it and press Scan.'):state.stage==='assembly'?current().clue:'Follow the pinned waypoint. Recover the component when you are within reach.';
+ context.mission=()=>({phase:state.stage,observed:[],collected:state.contacts.filter(c=>c.recovered).map(c=>c.id),fitted:state.contacts.filter(c=>c.fitted).map(c=>c.id),attempts:0,hints:0,cutscene:['descent','exit'].includes(state.stage),selection:current().name,flight:{altitude:state.altitude,records:state.contacts.map(c=>({id:c.id,samples:c.samples.length,uncertainty:c.radius,locked:c.locked}))}});
+ app.start();
+ try{
+  const [,shipAsset,astraAsset,frameAsset,...partAssets]=await Promise.all([landscape(app,chapter),model(app,'ship.glb'),model(app,'astra.glb'),model(app,moon?'lunar-frame.glb':'mer-frame.glb'),...['camera','solar','wheel'].map(id=>model(app,(moon?'lunar-':'mer-')+id+'.glb'))]);
+  ship=shipAsset.entity;ship.name='Expedition ship';ship.setLocalScale(1.7,1.7,1.7);app.root.addChild(ship);ship.enabled=false;
+  astra=astraAsset.entity;astra.name='Astra';app.root.addChild(astra);astra.addComponent('anim',{activate:true});for(const [i,a]of astraAsset.resource.animations.entries())astra.anim!.assignAnimation(['Idle','Walk','Recover','Talk'][i],a.resource!);astra.anim!.baseLayer?.play('Idle');astra.enabled=false;
+  frame=frameAsset.entity;benchRoot.addChild(frame);frame.setLocalPosition(0,1.35,0);frame.setLocalScale(2.25,2.25,2.25);
+  const table=material(0x25333c,.65,.28),trim=material(0xb19a6a,.65,.5);primitive(benchRoot,'Workbench deck','box',[0,1.1,0],[7,.25,5],table);for(const x of [-3.1,3.1])for(const z of [-2.1,2.1])primitive(benchRoot,'Workbench leg','cylinder',[x,.5,z],[.16,1.2,.16],trim);for(const z of [-2.45,2.45])beam(benchRoot,[-3.5,1.3,z],[3.5,1.3,z],.055,trim);
+  for(const [i,a]of partAssets.entries()){const e=a.entity;app.root.addChild(e);const c=state.contacts[i];e.setPosition(c.x,height(c.x,c.z)+.4,c.z);e.setLocalScale(1.6,1.6,1.6);parts.push(e);const bp=a.resource.instantiateRenderEntity();frame.addChild(bp);benchParts.push(bp);bp.setLocalPosition(...mountPoints[i] as [number,number,number]);bp.setEulerAngles(0,c.angle,0);}
+  benchRoot.setPosition(0,height(0,-83),-83);modelReady=true;host.dataset.ready='true';$('#pc-loading').hidden=true;
+  if(['assembly','complete'].includes(state.stage)){benchRoot.enabled=true;astra.enabled=true;astra.setPosition(4,height(0,-83),-84);if(state.stage==='assembly')selectPart(state.contacts.findIndex(c=>!c.fitted));else $('#pc-completion').hidden=false;}
+  objective('Locate 3 parts');say(moon?'The last frame shows that bright spire. Follow the tracks, Astra.':'The last frame caught the sunlit spire. Follow those tracks, Astra.');
+ }catch(e){console.error(e);$('#pc-loading').innerHTML=`Flight assets could not load. <button onclick="location.reload()">Retry</button> · <a href="${link('atlas')}">Open Omnecarta</a>`;return;}
+ function update(dt:number){
+  dt=Math.min(dt,.04);if(paused)return;time+=dt;phaseTime+=dt;if(time>captionUntil)$('#pc-caption').textContent='';if(time>objectiveUntil)$('#pc-objective').textContent='';if(!modelReady)return;
+  const flight=flying(),walk=walking(),bench=['assembly','complete'].includes(state.stage);host.dataset.stage=state.stage;
+  cockpitView.root.enabled=flight;$('#pc-hit-layer').hidden=!flight;$('#pc-height').hidden=!flight;$('#pc-touch').hidden=!(flight||state.stage==='walk');ship.enabled=!flight;astra.enabled=!flight;benchRoot.enabled=bench;
+  if(flight){
+   if(keys.has('w'))throttle=Math.min(100,throttle+dt*36);if(keys.has('s'))throttle=Math.max(0,throttle-dt*44);if(keys.has(' '))throttle=0;
+   if(down.has('forward'))throttle=Math.min(100,throttle+dt*36);if(down.has('back'))throttle=Math.max(0,throttle-dt*44);
+   const input=(keys.has('d')||keys.has('arrowright')||down.has('right')?1:0)-(keys.has('a')||keys.has('arrowleft')||down.has('left')?1:0);turn+=(input-turn)*(1-Math.exp(-5*dt));state.heading+=turn*52*dt;speed+=(throttle*.34-speed)*(1-Math.exp(-2.8*dt));
+   const a=state.heading*Math.PI/180;state.x=Math.max(-105,Math.min(105,state.x+Math.sin(a)*speed*dt));state.z=Math.max(-235,Math.min(125,state.z-Math.cos(a)*speed*dt));
+   state.altitude=Math.max(5,Math.min(65,state.altitude+((keys.has('u')||down.has('rise')?1:0)-(keys.has('j')||down.has('fall')?1:0))*dt*9));
+   camera.setPosition(state.x,height(state.x,state.z)+state.altitude,state.z);camera.setEulerAngles(-7,-state.heading,-turn*5);cockpitView.update(state,time,throttle,speed,turn*5,selected);cockpitView.lever.value=String(Math.round(throttle));cockpitView.buttons.lock.disabled=!lockable(current())||current().locked;
+  }
+  if(state.stage==='descent'){
+   const t=Math.min(1,phaseTime/6);ship.setPosition(state.x,pc.math.lerp(height(state.x,state.z)+state.altitude,height(state.x,state.z)+.12,t),state.z);ship.setEulerAngles(0,-state.heading,stabilized?0:Math.sin(time*7)*(1-t)*5);
+   camera.setPosition(state.x+13,ship.getPosition().y+8,state.z+18);camera.lookAt(ship.getPosition().clone().add(new pc.Vec3(0,1.4,0)));astra.enabled=false;
+   $('#pc-cutscene').hidden=false;$('#pc-cutscene').innerHTML=failed?'<p>Descent interrupted</p><button id="pc-retry">Retry landing</button><button id="pc-untimed">Use untimed input</button>':!stabilized?'<p>Crosswind at the rim</p><button id="pc-stabilize">Stabilize · E</button><button id="pc-untimed">Untimed</button>':'';
+   if(!stabilized&&!untimed&&phaseTime>6){failed=true;phaseTime=6;}if(failed){$('#pc-retry').onclick=()=>{failed=false;phaseTime=0;};}if(host.querySelector('#pc-stabilize'))$('#pc-stabilize').onclick=stabilize;if(host.querySelector('#pc-untimed'))$('#pc-untimed').onclick=()=>{untimed=true;failed=false;phaseTime=2;};
+   if(stabilized&&phaseTime>6){setStage('landed');state.altitude=0;$('#pc-cutscene').hidden=true;say('Landing struts secure. Opening the hatch.');}
+   dustRoot.enabled=t>.6;dust.forEach((d,i)=>{const a=i*2.4,spread=(phaseTime-3.5)*1.5+(i%4)*.8;d.setPosition(state.x+Math.sin(a)*spread,height(state.x,state.z)+.1+Math.sin(i)*.2,state.z+Math.cos(a)*spread);d.setLocalScale(2+(i%3),.35+(i%4)*.12,2+(i%2));});
+  }
+  if(['landed','exit'].includes(state.stage)){
+   ship.setPosition(state.x,height(state.x,state.z)+.12,state.z);ship.setEulerAngles(0,0,0);camera.setPosition(state.x+10,height(state.x,state.z)+7,state.z+13);camera.lookAt(state.x,height(state.x,state.z)+2,state.z);
+   const hatch=ship.findByName('Ship_hatch');hatch?.setLocalEulerAngles(-Math.min(1,phaseTime/1.8)*84,0,0);dustRoot.enabled=phaseTime<3;
+   astra.setPosition(state.x,height(state.x,state.z)+.3,state.z-1.8-(state.stage==='exit'?Math.min(1,phaseTime/3)*4:0));astra.setEulerAngles(0,0,0);animate(state.stage==='exit'?'Walk':'Idle');
+   if(state.stage==='exit'&&phaseTime>3){state.playerX=state.x;state.playerZ=state.z-6;playerHeading=0;setStage('walk');say('Follow a pinned return. I’m one action away.');}
+  }
+  if(walk){
+   dustRoot.enabled=false;const ax=(keys.has('d')||keys.has('arrowright')||down.has('right')?1:0)-(keys.has('a')||keys.has('arrowleft')||down.has('left')?1:0),az=(keys.has('w')||keys.has('arrowup')||down.has('forward')?1:0)-(keys.has('s')||keys.has('arrowdown')||down.has('back')?1:0);
+   const moving=state.stage==='walk'&&!!(ax||az);if(moving){const a=playerHeading*Math.PI/180,dx=ax*Math.cos(a)+az*Math.sin(a),dz=ax*Math.sin(a)-az*Math.cos(a),n=Math.hypot(dx,dz);state.playerX=Math.max(-100,Math.min(100,state.playerX+dx/n*dt*8));state.playerZ=Math.max(-230,Math.min(120,state.playerZ+dz/n*dt*8));astra.setEulerAngles(0,-Math.atan2(dx,-dz)*180/Math.PI,0);}astra.setPosition(state.playerX,height(state.playerX,state.playerZ),state.playerZ);
+   if(state.stage==='walk')animate(moving?'Walk':time<captionUntil?'Talk':'Idle');
+   const a=playerHeading*Math.PI/180;target.set(state.playerX-Math.sin(a)*7.5+Math.cos(a)*.8,height(state.playerX,state.playerZ)+3.0,state.playerZ+Math.cos(a)*7.5+Math.sin(a)*.8);camera.setPosition(target);camera.lookAt(state.playerX+Math.sin(a)*4,height(state.playerX,state.playerZ)+1.9,state.playerZ-Math.cos(a)*4);
+   if(state.stage==='recovery'&&pickIndex>=0){const e=parts[pickIndex];e.setPosition(state.contacts[pickIndex].x,height(state.contacts[pickIndex].x,state.contacts[pickIndex].z)+.4+Math.sin(Math.min(1,phaseTime/2)*Math.PI)*1.0,state.contacts[pickIndex].z);e.setLocalScale(Math.max(.01,1.6*(1-phaseTime/2)),Math.max(.01,1.6*(1-phaseTime/2)),Math.max(.01,1.6*(1-phaseTime/2)));if(phaseTime>2){state.contacts[pickIndex].recovered=true;setStage('walk');pickIndex=-1;if(state.contacts.every(c=>c.recovered))moveToBench();}}
+  }
+  if(bench){
+   const y=height(0,-83);camera.setPosition(Math.sin(benchYaw)*benchDistance,y+3+Math.sin(benchPitch)*benchDistance,-83+Math.cos(benchYaw)*benchDistance);camera.lookAt(0,y+2.8,-83);animate(time<captionUntil?'Talk':'Idle');
+   for(const [i,e]of benchParts.entries()){const c=state.contacts[i],mount=new pc.Vec3(...mountPoints[i]);const seat=seating.get(i);if(seat){seat.t+=dt;const k=Math.min(1,seat.t/.8);e.setLocalPosition(new pc.Vec3().lerp(seat.from,mount,k*k*(3-2*k)));if(k===1)seating.delete(i);}else if(c.fitted)e.setLocalPosition(mount);else e.setLocalPosition(mount.x+(i-1)*.25,mount.y+.65+(i===selected?.2:0),mount.z);e.setLocalEulerAngles(0,c.fitted?c.angle:i===selected?partAngle:c.angle,0);}
+  }
+  if(!flight&&ship){for(const e of ship.find(n=>n.name.startsWith('Thrust_')||n.name.startsWith('Landing_thrust_')) as pc.Entity[])e.enabled=state.stage==='descent';}
+  parts.forEach((e,i)=>e.enabled=!flight&&!bench&&!state.contacts[i].recovered);
+  const prompt=$<HTMLButtonElement>('#pc-interact');prompt.hidden=true;
+  if(state.stage==='approach'){prompt.hidden=false;prompt.textContent='Land · E';prompt.disabled=Math.hypot(state.x-landing.x,state.z-landing.z)>18||state.altitude>12||speed>9;}
+  if(state.stage==='landed'&&phaseTime>1.8){prompt.hidden=false;prompt.disabled=false;prompt.textContent='Step outside · E';}
+  if(state.stage==='walk'){const near=state.contacts.find(c=>c.locked&&!c.recovered&&Math.hypot(c.x-state.playerX,c.z-state.playerZ)<3.4);if(near){prompt.hidden=false;prompt.disabled=false;prompt.textContent='Recover '+near.name+' · E';}}
+  if(state.stage==='assembly'&&$('#pc-bench').hidden){prompt.hidden=false;prompt.disabled=false;prompt.textContent='Open workbench';}
+  const pin=$<HTMLButtonElement>('#pc-waypoint');const next=state.contacts.filter(c=>c.locked&&!c.recovered).sort((a,b)=>Math.hypot(a.x-state.playerX,a.z-state.playerZ)-Math.hypot(b.x-state.playerX,b.z-state.playerZ))[0];pin.hidden=!(state.stage==='approach'||state.stage==='walk');
+  if(!pin.hidden){const destination=state.stage==='approach'?{...landing,name:'Landing shelf'}:next;if(destination){camera.camera!.worldToScreen(new pc.Vec3(destination.x,height(destination.x,destination.z)+2,destination.z),target);const w=innerWidth,h=innerHeight;pin.style.left=Math.max(70,Math.min(w-70,target.x))+'px';pin.style.top=Math.max(120,Math.min(h*.68,target.y))+'px';pin.innerHTML=`<span>◇</span>${destination.name}<small>${Math.round(Math.hypot(destination.x-(flight?state.x:state.playerX),destination.z-(flight?state.z:state.playerZ)))} m</small>`;}else pin.hidden=true;}
+  host.dataset.position=`${state.x.toFixed(2)},${state.z.toFixed(2)}`;host.dataset.player=`${state.playerX.toFixed(2)},${state.playerZ.toFixed(2)}`;host.dataset.heading=String(state.heading);host.dataset.altitude=String(state.altitude);host.dataset.speed=String(speed);host.dataset.scans=String(state.contacts.reduce((a,c)=>a+c.samples.length,0));host.dataset.locks=String(state.contacts.filter(c=>c.locked).length);host.dataset.recovered=String(state.contacts.filter(c=>c.recovered).length);host.dataset.fitted=String(state.contacts.filter(c=>c.fitted).length);host.dataset.selected=String(selected);
+ }
+ app.on('update',update);const saver=setInterval(()=>persist(state),1000);window.addEventListener('pagehide',()=>{clearInterval(saver);persist(state);app.destroy();window.removeEventListener('resize',resize);},{once:true});canvas.focus();
+}

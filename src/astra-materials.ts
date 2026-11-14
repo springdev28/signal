@@ -3,6 +3,7 @@ import * as THREE from 'three';
 type Finish = 'canvas' | 'enamel' | 'steel' | 'brass' | 'rubber';
 type Maps = { map: THREE.DataTexture; roughnessMap: THREE.DataTexture; bumpMap: THREE.DataTexture };
 const maps = new Map<Finish, Maps>();
+const materials: {material:THREE.MeshStandardMaterial;finish:Finish}[]=[];
 const size = 512;
 
 function hash(x: number, y: number) {
@@ -87,8 +88,17 @@ function surfaceMaps(finish: Finish): Maps {
 }
 
 export function astraMaterial(color: number, finish: Finish, metalness: number, roughness = 1) {
-  const material = new THREE.MeshStandardMaterial({ color, metalness, roughness, ...surfaceMaps(finish) });
+  const material = new THREE.MeshStandardMaterial({ color, metalness, roughness });
   material.bumpScale = finish === 'canvas' ? .009 : finish === 'rubber' ? .003 : .0014;
   material.userData.surfaceFinish = finish;
+  materials.push({material,finish});
   return material;
+}
+
+/** Atlas and landing-page imports do not need to generate character textures. */
+export function prepareAstraMaterials(){
+  for(const {material,finish}of materials){
+    if(material.map)continue;
+    Object.assign(material,surfaceMaps(finish));material.needsUpdate=true;
+  }
 }

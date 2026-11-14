@@ -196,7 +196,7 @@ export function createStoryScene(host:HTMLElement, actions:SceneActions, hardwar
             .multiplyScalar(1+(1-easing)*.28).add(controls.target);
         }
       }
-      const scanned=(now-pulseAt)/750, collected=(now-pickupAt)/530, fitted=(now-fitAt)/620;
+      const scanned=(now-pulseAt)/750, collected=(now-pickupAt)/1750, fitted=(now-fitAt)/620;
       const poseAmount=(age:number)=>reduced.matches||age<0||age>1?0:Math.sin(age*Math.PI);
       astra.pose(now/1000, mode==='field'?Math.min(1,moved/Math.max(.001,seconds)/6.6):0,
         collected<1?'pickup':scanned<1||cutscene?'scan':now<state.talkUntil?'talk':'idle',
@@ -214,15 +214,15 @@ export function createStoryScene(host:HTMLElement, actions:SceneActions, hardwar
         camera.position.add(target.copy(controls.target).sub(nextPos));
       }
       for(const entry of fieldParts){
-        const picking=entry.part.id===picked&&now-pickupAt<500&&!reduced.matches;
+        const picking=entry.part.id===picked&&now-pickupAt<1750&&!reduced.matches;
         entry.group.visible=save.phase==='recover'&&(!save.collected.includes(entry.part.id)||picking);
         if(picking){
-          const blend=Math.min(1,(now-pickupAt)/500);
-          entry.object.position.copy(nextPos.copy(astra.model.position).sub(entry.group.position).multiplyScalar(blend));
-          entry.object.position.y+=.28+Math.sin(blend*Math.PI/2)*1.25;
+          const blend=Math.min(1,(now-pickupAt)/1750),travel=THREE.MathUtils.smoothstep(blend,0,.42);
+          astra.gripPoint(nextPos);entry.group.worldToLocal(nextPos);
+          entry.object.position.set(0,.28,0).lerp(nextPos,travel);
         }else entry.object.position.set(0,entry.restY,0);
         entry.object.rotation.y=picking?(now-pickupAt)*.001:0;
-        entry.object.scale.setScalar(picking?Math.max(.08,1-(now-pickupAt)/520):1);
+        entry.object.scale.setScalar(picking?1-THREE.MathUtils.smoothstep((now-pickupAt)/1750,.16,.95)*.92:1);
       }
       const pulseAge=(now-pulseAt)/750;
       pulse.visible=pulseAge<1&&mode==='field'&&!reduced.matches;
@@ -375,6 +375,7 @@ export function createStoryScene(host:HTMLElement, actions:SceneActions, hardwar
       if(!reduced.matches){cameraMove={from,to:camera.position.clone(),targetFrom:controls.target.clone(),targetTo:controls.target.clone(),start:performance.now()};camera.position.copy(from);}
     },
     dispose(){
+      astra.dispose();benchAstra.dispose();
       cancelAnimationFrame(animation);
       observer.disconnect();
       controls.dispose();

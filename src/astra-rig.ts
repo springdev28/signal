@@ -130,6 +130,7 @@ export function createRobotRig(source: GLTF) {
     bodyEuler.set(-.025 * weight, 0, sway * weight * .018 + Math.sin(time * .7) * (1 - weight) * .003);
     bodyQuaternion.setFromEuler(bodyEuler);
     model.updateWorldMatrix(true, true);
+    maxJointError = 0;
     for (let i = 0; i < 2; i++) {
       const side = i === 0 ? -1 : 1, suffix = i === 0 ? 'L' : 'R';
       const phase = (gait + i * .5) % 1, stance = phase < .62;
@@ -148,7 +149,7 @@ export function createRobotRig(source: GLTF) {
       joint(bone(`UpperLeg${suffix}`), hip, knee);
       joint(bone(`LowerLeg${suffix}`), knee, ankle);
       joints[i].position.copy(hip); joints[i + 2].position.copy(knee); joints[i + 4].position.copy(ankle);
-      maxJointError = Math.max(Math.abs(hip.distanceTo(knee) - lengthA), Math.abs(knee.distanceTo(ankle) - lengthB));
+      maxJointError = Math.max(maxJointError, Math.abs(hip.distanceTo(knee) - lengthA), Math.abs(knee.distanceTo(ankle) - lengthB));
       const swing = Math.sin((gait + i * .5) * Math.PI * 2) * weight;
       const restSway = Math.sin(time * 1.25 + i * 2.1) * (1 - weight);
       bodyPoint(side * .30, 1.62, 0, shoulder);

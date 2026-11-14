@@ -134,7 +134,7 @@ export function mountStory(solaris: SolarisContext) {
   let pausedForChat = false, timeRemaining = 0, transitioning = false;
   const keys=new Set<GroundDirection>();
   const pointers=new Map<number,GroundDirection>();
-  const motion=createGroundMotion(6.6);
+  const motion=createGroundMotion(1.25);
   const nav=$('navigation-tools'), stage=$('mission-stage');
   const briefing=$('briefing'), field=$('field-controls'), workbench=$('workbench');
   const scanButton=$<HTMLButtonElement>('scan'), interact=$<HTMLButtonElement>('interact');

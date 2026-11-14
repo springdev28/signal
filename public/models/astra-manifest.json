@@ -1,0 +1,50 @@
+{
+  "bytes": 12908548,
+  "sha256": "3d027d4975c650ea2bbfae3e32bb57d90b862d540543d9804a4e9a8f9192fb99",
+  "source": {
+    "astra": "010fd1caf5f867fe199af413758b4df7928af882f18c30a51ddc63981d531f9f",
+    "astra-rig": "27f7ddf9fcbc96e708e95323ea675ee1339e5399dccdf73ce81448732ff89aa3",
+    "astra-physics": "404d5e69dd7130196e35ebf62bbceb7ed962f26aa00cbce77e9a57513bfd336e",
+    "astra-materials": "a643df48c3f74ccc059c54757b802b8f4f0b48496e527960f361fe1a863c5520",
+    "astra-eyes": "e8f16eb12fd5653ef68a5c4d0113a87cda89d37b57769dc34d345fdf987b9dd9",
+    "astra-springs": "53e7abc6dac54304a9375c821d96b6119f93086b7a1c3df595681004f516dea0",
+    "geometry": "a0365016bae28167e7b0b682e5069d71c3e6269485d426f905a96afe4653fc5f"
+  },
+  "animations": [
+    {
+      "name": "Idle",
+      "duration": 4,
+      "tracks": 139
+    },
+    {
+      "name": "Walk",
+      "duration": 0.8695652173913044,
+      "tracks": 139
+    },
+    {
+      "name": "Recover",
+      "duration": 2.4,
+      "tracks": 139
+    },
+    {
+      "name": "Talk",
+      "duration": 3,
+      "tracks": 139
+    }
+  ],
+  "deformedMeshes": [
+    {
+      "name": "Shoulder cape",
+      "targets": 160
+    },
+    {
+      "name": "Shoulder fold",
+      "targets": 160
+    },
+    {
+      "name": "Flexible tail cable",
+      "targets": 160
+    }
+  ],
+  "walkSpeed": 0.7048387096774194
+}

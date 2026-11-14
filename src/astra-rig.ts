@@ -116,6 +116,11 @@ export function createRobotRig(source: GLTF) {
     return target.set(x, y, z).applyQuaternion(bodyQuaternion).add(bodyPosition);
   }
   let weight = 0, gait = 0, maxJointError = 0;
+  let groundHeight: ((x: number, z: number) => number) | undefined;
+  const previousRoot = new THREE.Vector3(), currentRoot = new THREE.Vector3();
+  const footGround = [new THREE.Vector3(), new THREE.Vector3()];
+  const groundPoint = new THREE.Vector3();
+  let rootInitialized = false, travelDriven = false, distanceTravelled = 0;
   const gestures = {scan: 0, assemble: 0};
   function update(dt: number, time: number, speed: number, action: string, amount: number) {
     weight = THREE.MathUtils.damp(weight, speed, 8, dt);
@@ -124,20 +129,43 @@ export function createRobotRig(source: GLTF) {
     gestures.assemble = THREE.MathUtils.damp(gestures.assemble, action === 'assemble' ? amount : 0, 7, dt);
     idle.setEffectiveWeight(1 - weight); walking.setEffectiveWeight(weight);
     mixer.update(dt);
-    gait += dt * 1.15 * weight;
+    model.updateWorldMatrix(true, false);
+    model.getWorldPosition(currentRoot); model.getWorldScale(modelScale);
+    const travelled = rootInitialized ? Math.hypot(currentRoot.x - previousRoot.x, currentRoot.z - previousRoot.z) / modelScale.y : 0;
+    // Ignore scene placement/teleports. A moving character advances its stance
+    // by actual distance; the studio can still preview an in-place walk.
+    if (travelled > .00001 && travelled < Math.max(.3, dt * 10)) travelDriven = true;
+    if (speed === 0 && weight === 0) travelDriven = false;
+    distanceTravelled = travelDriven && travelled < Math.max(.3, dt * 10) ? travelled : 0;
+    gait += travelDriven ? distanceTravelled * .62 / .38 : dt * 1.15 * weight;
+    previousRoot.copy(currentRoot); rootInitialized = true;
     const sway = Math.sin(gait * Math.PI * 2), breath = Math.sin(time * 1.55);
     bodyPosition.set(sway * weight * .018, -.006 * (1 - weight) * (1 + breath) - .014 * weight * (1 - Math.cos(gait * Math.PI * 4)), 0);
     bodyEuler.set(-.025 * weight, 0, sway * weight * .018 + Math.sin(time * .7) * (1 - weight) * .003);
     bodyQuaternion.setFromEuler(bodyEuler);
-    model.updateWorldMatrix(true, true);
-    maxJointError = 0;
     for (let i = 0; i < 2; i++) {
-      const side = i === 0 ? -1 : 1, suffix = i === 0 ? 'L' : 'R';
       const phase = (gait + i * .5) % 1, stance = phase < .62;
       const u = stance ? phase / .62 : (phase - .62) / .38;
       const z = stance ? THREE.MathUtils.lerp(-.19, .19, u) : THREE.MathUtils.lerp(.19, -.19, u * u * (3 - 2 * u));
       const lift = stance ? 0 : .095 * Math.sin(u * Math.PI) ** 2;
-      feet[i].position.set(side * .19, lift * weight, z * weight - .015);
+      const strideWeight = travelDriven ? THREE.MathUtils.smoothstep(weight, 0, .15) : weight;
+      feet[i].position.set((i === 0 ? -1 : 1) * .19, lift * weight, z * strideWeight - .015);
+      footGround[i].set(feet[i].position.x, 0, feet[i].position.z);
+      if (groundHeight) {
+        groundPoint.copy(footGround[i]).applyMatrix4(model.matrixWorld);
+        groundPoint.y = groundHeight(groundPoint.x, groundPoint.z);
+        model.worldToLocal(groundPoint);
+        footGround[i].y = groundPoint.y;
+        feet[i].position.y += groundPoint.y;
+      }
+    }
+    // Lower the pelvis to the lower contact on a slope. Both legs retain their
+    // measured lengths instead of stretching the downhill ankle away.
+    if (groundHeight) bodyPosition.y += Math.min(footGround[0].y, footGround[1].y);
+    model.updateWorldMatrix(true, true);
+    maxJointError = 0;
+    for (let i = 0; i < 2; i++) {
+      const side = i === 0 ? -1 : 1, suffix = i === 0 ? 'L' : 'R';
       feet[i].rotation.set(0, side * -.045, 0);
       ankle.copy(feet[i].position).add(worldEnd.set(0, .12, .025));
       bodyPoint(side * .17, 1.015, 0, hip);
@@ -183,7 +211,8 @@ export function createRobotRig(source: GLTF) {
   update(0, 0, 0, 'idle', 0);
   return {
     model, asset, bone, feet, segments, update, bodyPosition, bodyQuaternion, localPosition,
-    inspect() { return { source: 'RobotExpressive.glb', importedMeshes: imported.length, animations: clips.map(c => c.name), walkWeight: weight, feet: feet.map(f => f.position.y), maxJointError }; },
+    setGroundHeight(sample?: (x: number, z: number) => number) { groundHeight = sample; },
+    inspect() { return { source: 'RobotExpressive.glb', importedMeshes: imported.length, animations: clips.map(c => c.name), walkWeight: weight, gait, travelDriven, distanceTravelled, feet: feet.map(f => f.position.y), maxJointError }; },
     dispose() { mixer.stopAllAction(); mixer.uncacheRoot(asset); imported.forEach(m => m.geometry.dispose()); },
   };
 }

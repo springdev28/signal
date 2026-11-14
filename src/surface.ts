@@ -51,7 +51,7 @@ export async function mountSurface(world: WorldId, context: SolarisContext) {
   context.subject = `${destinations[world].name} · Surface exploration`;
   const keys = new Set<GroundDirection>();
   const pointerKeys = new Map<number,GroundDirection>();
-  const motion=createGroundMotion(3.5);
+  const motion=createGroundMotion(1.25);
   const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
   let arriving=!reduced;
   const state = { x: 0, z: 5, found: [] as string[] };
@@ -77,7 +77,7 @@ export async function mountSurface(world: WorldId, context: SolarisContext) {
   renderer.domElement.setAttribute('aria-label','Surface view. WASD or arrows move with the camera. Drag to look. Space jumps. E scans.');
   const scene=new THREE.Scene();
   const terrain=createTerrain(scene,world);scene.fog=terrain.fog;
-  const astra=createAstra();astra.model.rotation.y=0;scene.add(astra.model);
+  const astra=createAstra();astra.setGroundHeight(terrain.height);astra.model.rotation.y=0;scene.add(astra.model);
   const camera=new THREE.PerspectiveCamera(55,1,.1,500);
   const controls=new OrbitControls(camera,renderer.domElement);
   controls.enablePan=false;controls.enableDamping=true;controls.minDistance=3;controls.maxDistance=35;controls.maxPolarAngle=Math.PI*.48;
@@ -166,6 +166,7 @@ export async function mountSurface(world: WorldId, context: SolarisContext) {
     if(!paused&&(verticalSpeed||altitude)){verticalSpeed-=dt*(world==='moon'?1.62:3.71);altitude=Math.max(0,altitude+verticalSpeed*dt);if(!altitude)verticalSpeed=0;}
     astra.model.position.set(state.x,terrain.height(state.x,state.z)+altitude,state.z);
     const scanAge=(now-scanAt)/1000;
+    astra.setGroundHeight(altitude > .01 ? undefined : terrain.height);
     astra.pose(now/1000,altitude>.1?0:step.fraction,scanAge<1?'scan':'idle',scanAge<1?Math.sin(scanAge*Math.PI):0);
     priorTarget.copy(controls.target);currentTarget.set(state.x,terrain.height(state.x,state.z)+1.35,state.z);
     controls.target.lerp(currentTarget,1-Math.exp(-12*dt));camera.position.add(currentTarget.copy(controls.target).sub(priorTarget));

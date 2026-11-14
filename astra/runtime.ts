@@ -1,0 +1,25 @@
+import * as pc from 'playcanvas';
+import {model,material,color} from '../src/odyssey/world';
+import {expressiveEyes} from '../src/odyssey/presentation';
+const canvas=document.querySelector<HTMLCanvasElement>('#viewport')!;
+const app=new pc.Application(canvas,{graphicsDeviceOptions:{antialias:true},mouse:new pc.Mouse(canvas),touch:new pc.TouchDevice(canvas)});
+app.setCanvasFillMode(pc.FILLMODE_FILL_WINDOW);app.setCanvasResolution(pc.RESOLUTION_AUTO);app.graphicsDevice.maxPixelRatio=Math.min(devicePixelRatio,1.5);
+app.scene.ambientLight=color(0x647b80);
+const camera=new pc.Entity('Model camera');camera.addComponent('camera',{fov:35,nearClip:.05,farClip:100,clearColor:color(0x151c20),toneMapping:pc.TONEMAP_ACES,gammaCorrection:pc.GAMMA_SRGB});app.root.addChild(camera);
+for(const [name,r,g,b,intensity,rx,ry]of [['Key',1,.9,.72,2.8,43,145],['Fill',.64,.83,.91,1.4,25,-35]] as const){const light=new pc.Entity(name);light.addComponent('light',{type:'directional',color:new pc.Color(r,g,b),intensity,castShadows:name==='Key',shadowResolution:2048,shadowDistance:14,normalOffsetBias:.015,shadowBias:.04});light.setEulerAngles(rx,ry,0);app.root.addChild(light);}
+const floor=new pc.Entity('Studio floor');floor.addComponent('render',{type:'plane',material:material(0x354348,0,.05)});floor.setLocalScale(100,1,100);floor.setPosition(0,-.006,0);app.root.addChild(floor);
+const asset=await model(app,'astra.glb'),astra=asset.entity;astra.name='Astra';app.root.addChild(astra);astra.setEulerAngles(0,180,0);
+astra.addComponent('anim',{activate:true});const names=['Idle','Walk','Recover','Talk'];
+asset.resource.animations.forEach((clip,i)=>{if(!clip.resource)throw new Error('Missing animation '+names[i]);astra.anim!.assignAnimation(names[i],clip.resource);});
+const animationLayer=astra.anim!.baseLayer!;animationLayer.play('Idle');const eyes=expressiveEyes(app,astra);let motion='Idle';
+const status=document.querySelector('#status')!;status.textContent='PlayCanvas · current game asset';
+for(const button of document.querySelectorAll<HTMLButtonElement>('[data-motion]'))button.onclick=()=>{motion=button.dataset.motion!;animationLayer.transition(motion,.18);for(const b of document.querySelectorAll('[data-motion]'))b.setAttribute('aria-pressed',String(b===button));};
+let yaw=.25,pitch=.11,distance=8,lastInteraction=performance.now(),dragging=false,x=0,y=0,time=0;
+canvas.onpointerdown=e=>{dragging=true;x=e.clientX;y=e.clientY;lastInteraction=performance.now();canvas.setPointerCapture(e.pointerId);};
+canvas.onpointermove=e=>{if(!dragging)return;yaw-=(e.clientX-x)*.007;pitch=pc.math.clamp(pitch+(e.clientY-y)*.005,-.05,1.1);x=e.clientX;y=e.clientY;lastInteraction=performance.now();};
+canvas.onpointerup=()=>{dragging=false;lastInteraction=performance.now();};canvas.onpointercancel=canvas.onpointerup;
+canvas.onwheel=e=>{e.preventDefault();distance=pc.math.clamp(distance*Math.exp(e.deltaY*.001),4,15);lastInteraction=performance.now();};
+const resize=()=>app.resizeCanvas();window.addEventListener('resize',resize);resize();
+app.on('update',dt=>{time+=dt;eyes(time,motion);if(!dragging&&performance.now()-lastInteraction>3000){const settling=Math.exp(-dt*2.3);yaw*=settling;pitch=.11+(pitch-.11)*settling;}const d=Math.max(distance,innerHeight/innerWidth*4.9);camera.setPosition(Math.sin(yaw)*d+.35,1.55+Math.sin(pitch)*d,Math.cos(yaw)*d);camera.lookAt(.35,1.55,0);document.body.dataset.animation=motion;document.body.dataset.heading=String(yaw);document.body.dataset.frame=String(app.frame);});
+document.body.dataset.ready='true';app.start();
+window.addEventListener('pagehide',()=>{window.removeEventListener('resize',resize);app.destroy();},{once:true});

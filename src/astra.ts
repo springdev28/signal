@@ -82,6 +82,7 @@ function fabric() {
 }
 
 export function createAstra() {
+  let groundHeight: ((x: number, z: number) => number) | undefined;
   prepareAstraMaterials();
   const model = new THREE.Group();
   model.name = 'Astra';
@@ -234,7 +235,7 @@ export function createAstra() {
   }
   const ready=loadAstraAssets().then(({robot,Ammo})=>{
     if(disposed)return;
-    rig=createRobotRig(robot);model.add(rig.model);prepareAstraMaterials();
+    rig=createRobotRig(robot);rig.setGroundHeight(groundHeight);model.add(rig.model);prepareAstraMaterials();
     rig.segments.forEach(s=>colliders.push({node:s.a,start:new THREE.Vector3(),end:new THREE.Vector3(),radius:s.radius}));
     rig.update(0,0,0,'idle',0);body.position.copy(rig.bodyPosition);model.updateMatrixWorld(true);
     physics=createCapePhysics(Ammo,model,[
@@ -358,5 +359,6 @@ export function createAstra() {
   }
   function gripPoint(target=new THREE.Vector3()){claw.updateWorldMatrix(true,false);return target.set(0,.29,0).applyMatrix4(claw.matrixWorld);}
   function dispose(){disposed=true;physics?.dispose();rig?.dispose();model.traverse(node=>{if(node instanceof THREE.Mesh)node.geometry.dispose();});}
-  return { model, pose, inspectRig, gripPoint, ready, dispose };
+  function setGroundHeight(sample?: (x: number, z: number) => number) { groundHeight = sample; rig?.setGroundHeight(sample); }
+  return { model, pose, inspectRig, gripPoint, ready, dispose, setGroundHeight };
 }

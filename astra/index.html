@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Astra · interactive model</title>
+<style>
+html,body{margin:0;background:#151c20;color:#e4e7e3;font:14px system-ui;height:100%;overflow:hidden}canvas{display:block;touch-action:none;outline-offset:-4px}header{position:absolute;top:28px;left:32px;z-index:2;pointer-events:none}h1{font-size:26px;font-weight:500;letter-spacing:.08em;margin:0 0 8px}header p{color:#a8b8b9;font-size:13px;margin:7px 0}.controls{position:absolute;bottom:22px;inset-inline:16px;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;pointer-events:none}.controls fieldset{display:flex;gap:3px;border:1px solid #45606b66;background:#142026e8;border-radius:9px;padding:4px;pointer-events:auto}.controls legend{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}button{background:transparent;border:1px solid transparent;border-radius:5px;color:#aebdbb;font:inherit;padding:10px 13px;min-height:44px;cursor:pointer}button[aria-pressed="true"]{color:#d8efeb;border-color:#638d8b;background:#32494c}button:hover{color:white;background:#314347}button:focus-visible{outline:2px solid #88d7df;outline-offset:2px}.hint{position:absolute;right:28px;top:32px;color:#93aaae;font-size:12px;pointer-events:none}@media(max-width:700px){header{left:22px;right:22px;top:20px}header p{max-width:240px;font-size:12px}.hint{top:105px;left:22px;right:auto}.controls{bottom:14px;gap:4px}button{padding:8px 11px;font-size:12px}}
+</style>
+<header><h1>ASTRA</h1><p>Weathered field robot · live model</p></header>
+<div class="hint">Drag to rotate · scroll or pinch to zoom</div>
+<div class="controls">
+<fieldset><legend>Animation</legend><button data-pose="idle" aria-pressed="true">Idle</button><button data-pose="walk" aria-pressed="false">Walk</button><button data-pose="scan" aria-pressed="false">Scan</button><button data-pose="pickup" aria-pressed="false">Recover</button></fieldset>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {createAstra} from '../src/astra.ts';
+import {preparePaint} from '../src/paint.ts';
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.22;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.domElement.tabIndex=0;renderer.domElement.setAttribute('aria-label','Interactive Astra model. Drag to rotate, scroll or pinch to zoom.');document.body.append(renderer.domElement);
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x151c20);scene.fog=new THREE.Fog(0x151c20,15,35);
+scene.add(new THREE.HemisphereLight(0xc9d9dc,0x42403a,1.5));
+const key=new THREE.DirectionalLight(0xffebcd,3.1);key.position.set(-3,6,5);key.castShadow=true;key.shadow.mapSize.set(2048,2048);Object.assign(key.shadow.camera,{left:-3,right:3,top:4,bottom:-3,near:.5,far:18});key.shadow.normalBias=.003;key.shadow.bias=-.00003;key.shadow.radius=2;scene.add(key);
+const fill=new THREE.DirectionalLight(0xb4d4df,1.5);fill.position.set(4,3,4);scene.add(fill);const rim=new THREE.DirectionalLight(0xaedcda,2);rim.position.set(2,5,-4);scene.add(rim);
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(60,60),new THREE.MeshStandardMaterial({color:0x303b3f,roughness:.96}));floor.rotation.x=-Math.PI/2;floor.position.y=-.001;floor.receiveShadow=true;scene.add(floor);
+const astra=createAstra();astra.model.rotation.y=Math.PI;scene.add(astra.model);
+const status=document.querySelector('header p');status.textContent='Loading Astra…';
+try{await astra.ready;status.textContent='Weathered field robot · live model';}catch(error){status.textContent='Astra could not load. Reload to retry.';throw error;}
+// A small contact shadow makes the exact sole/floor contact readable in the
+// plain studio. It fades out as a foot lifts; directional shadows stay active.
+const contactCanvas=document.createElement('canvas');contactCanvas.width=contactCanvas.height=64;
+const context=contactCanvas.getContext('2d');const gradient=context.createRadialGradient(32,32,6,32,32,32);gradient.addColorStop(0,'rgba(0,0,0,.7)');gradient.addColorStop(1,'rgba(0,0,0,0)');context.fillStyle=gradient;context.fillRect(0,0,64,64);
+const contacts=['Left foot','Right foot'].map(name=>{const mesh=new THREE.Mesh(new THREE.PlaneGeometry(.23,.37),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(contactCanvas),transparent:true,depthWrite:false,opacity:.45}));mesh.rotation.x=-Math.PI/2;scene.add(mesh);return {foot:astra.model.getObjectByName(name),mesh};});
+const contactPoint=new THREE.Vector3();
+function contactShadows(){astra.model.updateMatrixWorld(true);for(const {foot,mesh}of contacts){contactPoint.set(0,0,0).applyMatrix4(foot.matrixWorld);mesh.position.set(contactPoint.x,.0002,contactPoint.z);mesh.material.opacity=.45*Math.exp(-Math.max(0,contactPoint.y)*18);}}
+const camera=new THREE.PerspectiveCamera(35,innerWidth/innerHeight,.1,60);
+const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,1.55,0);controls.enableDamping=true;controls.dampingFactor=.1;controls.minDistance=.7;controls.maxDistance=12;controls.minPolarAngle=.18;controls.maxPolarAngle=Math.PI*.51;controls.enablePan=true;
+const frameBounds=new THREE.Box3(),pieceBounds=new THREE.Box3();
+astra.model.updateMatrixWorld(true);
+astra.model.traverseVisible(node=>{if(node.isMesh){if(node.isSkinnedMesh)node.skeleton.update();frameBounds.union(pieceBounds.setFromObject(node,true));}});
+const frameCenter=frameBounds.getCenter(new THREE.Vector3());frameCenter.y=1.62;
+const view=(angle)=>{const tan=Math.tan(THREE.MathUtils.degToRad(camera.fov/2));const usableHeight=innerWidth<700?.73:.86;const distance=Math.max(6.8,3.5/(2*tan*usableHeight),2.5/(2*tan*camera.aspect*.86));controls.target.copy(frameCenter);camera.position.copy(frameCenter).add(new THREE.Vector3(Math.sin(angle)*distance,distance*.11,Math.cos(angle)*distance));controls.update();lastInteraction=performance.now();};
+let mode='idle',manual=false,start=performance.now(),modeStart=performance.now(),lastInteraction=performance.now(),interacting=false,lastFrame=performance.now(),sampleAttached=false,lastCycle=-1;view(.35);
+controls.addEventListener('start',()=>{interacting=true;lastInteraction=performance.now();});
+controls.addEventListener('end',()=>{interacting=false;lastInteraction=performance.now();});
+renderer.domElement.addEventListener('wheel',()=>{lastInteraction=performance.now();},{passive:true});
+const returnOffset=new THREE.Vector3(),returnOrbit=new THREE.Spherical();
+for(const button of document.querySelectorAll('[data-pose]'))button.addEventListener('click',()=>{mode=button.dataset.pose;modeStart=performance.now();manual=false;sampleAttached=false;lastCycle=-1;for(const b of document.querySelectorAll('[data-pose]'))b.setAttribute('aria-pressed',String(b===button));});
+renderer.domElement.addEventListener('keydown',event=>{if(!['ArrowLeft','ArrowRight'].includes(event.key))return;event.preventDefault();lastInteraction=performance.now();const offset=camera.position.clone().sub(controls.target);offset.applyAxisAngle(new THREE.Vector3(0,1,0),event.key==='ArrowLeft'?-.12:.12);camera.position.copy(controls.target).add(offset);controls.update();});
+window.addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();view(controls.getAzimuthalAngle());});
+await preparePaint();
+const samplePart=new THREE.Mesh(new THREE.CylinderGeometry(.065,.065,.11,12),new THREE.MeshStandardMaterial({color:0x98bab6,metalness:.65,roughness:.46,transparent:true}));samplePart.castShadow=true;scene.add(samplePart);samplePart.visible=false;
+const gripPosition=new THREE.Vector3(),sampleRest=new THREE.Vector3(-.45,.075,.75),gripOrientation=new THREE.Quaternion();const clamp=astra.model.getObjectByName('Three-finger tail claw');
+function animate(now){
+  const dt=Math.min(.05,(now-lastFrame)/1000);lastFrame=now;
+  const elapsed=(now-modeStart)/1000,cycle=Math.floor(elapsed/4.4),age=elapsed%4.4;
+  if(cycle!==lastCycle){sampleAttached=false;lastCycle=cycle;}
+  if(!manual){
+    const t=(now-start)/1000,action=mode==='walk'?'idle':mode;
+    const amount=mode==='pickup'?(age<2.2?Math.sin(age/2.2*Math.PI):0):mode==='scan'?(.5-.5*Math.cos(t*1.7)):0;
+    astra.pose(t,mode==='walk',action,amount);
+  }
+  if(!interacting&&now-lastInteraction>3000){
+    returnOrbit.setFromVector3(returnOffset.copy(camera.position).sub(controls.target));
+    returnOrbit.theta=THREE.MathUtils.damp(returnOrbit.theta,0,2.3,dt);
+    returnOrbit.phi=THREE.MathUtils.damp(returnOrbit.phi,1.44,2.3,dt);
+    camera.position.copy(controls.target).add(returnOffset.setFromSpherical(returnOrbit));
+  }
+  samplePart.visible=mode==='pickup'&&age<2.2;
+  if(samplePart.visible){
+    const grip=astra.inspectRig().clampClosed;astra.gripPoint(gripPosition);
+    if(!sampleAttached&&grip>.75&&gripPosition.distanceTo(sampleRest)<.10){sampleAttached=true;document.body.dataset.lastRecovery=JSON.stringify({distance:gripPosition.distanceTo(sampleRest),closed:grip,at:age});}
+    samplePart.position.copy(sampleAttached?gripPosition:sampleRest);
+    if(sampleAttached)samplePart.quaternion.copy(clamp.getWorldQuaternion(gripOrientation));else samplePart.quaternion.identity();
+    samplePart.material.opacity=1-THREE.MathUtils.smoothstep(age,2,2.2);
+  }
+  contactShadows();controls.update();renderer.render(scene,camera);
+  document.body.dataset.heading=controls.getAzimuthalAngle().toFixed(4);
+  document.body.dataset.frame=String(renderer.info.render.frame);
+  document.body.dataset.recoveryState=samplePart.visible?(sampleAttached?'gripped':'reaching'):'idle';
+  requestAnimationFrame(animate);
+}
+astra.pose(0,false,'idle',0);requestAnimationFrame(animate);document.body.dataset.ready='true';
+window.setAstraPose=(seconds,walking=false,action='idle',amount=0)=>{manual=true;astra.pose(seconds,walking,action,amount);contactShadows();renderer.render(scene,camera);return [new THREE.Box3().setFromObject(astra.model).min.y];};
+window.astraStudy={astra,scene,camera,controls,renderer,view};
+</script></html>

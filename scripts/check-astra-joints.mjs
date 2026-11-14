@@ -30,5 +30,29 @@ for(const [action,speed,amount]of [['idle',0,0],['idle',1,0],['scan',0,1],['pick
 }
 assert(maxError<1e-5,'Hip, knee and ankle segment lengths must agree.');
 assert(minFoot>=0,'No foot may penetrate the floor.');assert(maxSupport<1e-7,'At least one supporting foot must remain planted.');assert(maxLift>.08,'The swing foot must lift.');assert(maxHandGap<.51,'Forearms must retain Astra proportions.');
-const report={poses:900,maxJointError:maxError,minFoot,maxSupport,maxLift,maxForearmLength:maxHandGap,samples};
+const locomotion=[];
+for(const fps of [15,30,60]){
+ const moving=createRobotRig(source),root=new THREE.Group();root.add(moving.model);
+ const last=[new THREE.Vector3(),new THREE.Vector3()],planted=[false,false];
+ let maxSlide=0,contacts=0,maxTerrainError=0,maxSlopeJointError=0;
+ for(let frame=0;frame<fps*8;frame++){
+  const slope=frame>=fps*4,dt=1/fps;
+  const terrain=(x,z)=>slope?.16*x+.12*z:0;
+  root.position.z-=dt*1.25;root.position.y=terrain(0,root.position.z);
+  moving.setGroundHeight(terrain);moving.update(dt,frame*dt,1,'idle',0);
+  maxSlopeJointError=Math.max(maxSlopeJointError,moving.inspect().maxJointError);
+  const relative=moving.feet.map((foot,i)=>{
+   const p=foot.getWorldPosition(new THREE.Vector3()),height=p.y-terrain(p.x,p.z),onGround=Math.abs(height)<1e-7;
+   if(frame>fps&&frame<fps*4&&onGround&&planted[i]){maxSlide=Math.max(maxSlide,p.distanceTo(last[i]));contacts++;}
+   last[i].copy(p);planted[i]=onGround;return height;
+  });
+  maxTerrainError=Math.max(maxTerrainError,Math.abs(Math.min(...relative)));
+ }
+ assert(contacts>fps,'The moving rig must have sustained support contacts.');
+ assert(maxSlide<.0001,`Supporting feet slide at ${fps} fps: ${maxSlide}`);
+ assert(maxTerrainError<1e-7,'A supporting foot must land on the sampled terrain.');
+ assert(maxSlopeJointError<1e-5,'Slope adaptation must not stretch the legs.');
+ locomotion.push({fps,contacts,maxSlide,maxTerrainError,maxSlopeJointError});moving.dispose();
+}
+const report={poses:900,maxJointError:maxError,minFoot,maxSupport,maxLift,maxForearmLength:maxHandGap,samples,locomotion};
 await writeFile(new URL('report.json',dir),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));rig.dispose();

@@ -60,6 +60,7 @@ export function createStoryScene(host:HTMLElement, actions:SceneActions, hardwar
   const waypoint=new THREE.Mesh(new THREE.RingGeometry(1.35,1.43,48),new THREE.MeshBasicMaterial({color:0x91e6e7,side:THREE.DoubleSide,transparent:true,opacity:.8}));
   waypoint.rotation.x=-Math.PI/2;field.add(waypoint);
   const astra=createAstra();
+  astra.setGroundHeight(height);
   astra.model.rotation.y=0;
   field.add(astra.model);
   const shadow=new THREE.Mesh(new THREE.CircleGeometry(.65,26),new THREE.MeshBasicMaterial({color:0x1d1411,opacity:.3,transparent:true,depthWrite:false}));
@@ -198,7 +199,7 @@ export function createStoryScene(host:HTMLElement, actions:SceneActions, hardwar
       }
       const scanned=(now-pulseAt)/750, collected=(now-pickupAt)/1750, fitted=(now-fitAt)/620;
       const poseAmount=(age:number)=>reduced.matches||age<0||age>1?0:Math.sin(age*Math.PI);
-      astra.pose(now/1000, mode==='field'?Math.min(1,moved/Math.max(.001,seconds)/6.6):0,
+      astra.pose(now/1000, mode==='field'?Math.min(1,moved/Math.max(.001,seconds)/1.25):0,
         collected<1?'pickup':scanned<1||cutscene?'scan':now<state.talkUntil?'talk':'idle',
         collected<1?poseAmount(collected):cutscene&&!reduced.matches?.7:poseAmount(scanned));
       benchAstra.pose(now/1000,false,fitted<1?'assemble':now<state.talkUntil?'talk':'idle',poseAmount(fitted));

@@ -1,4 +1,5 @@
-/** Subtle object-space pigment variation, preserving continuous light values. */
+/** Shared object-space marks: irregular painted planes, broken hatching and
+ * halftone patches. Coordinates come from the mesh, never the screen. */
 export const paintedFinishGLSL = `
   float strokeHash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
   vec2 strokeCell(vec2 uv){
@@ -12,10 +13,22 @@ export const paintedFinishGLSL = `
     return n.x>n.y&&n.x>n.z?p.yz:n.y>n.z?p.xz:p.xy;
   }
   vec3 paintedFinish(vec3 light,vec2 uv,vec3 shadowInk,vec3 edgeInk,float facing){
-    float detail=1.-smoothstep(.2,.8,length(fwidth(uv)));
-    float strokes=sin(uv.x*15.+sin(uv.y*4.)*.7)*sin(uv.y*1.9+uv.x*.4);
-    // A small multiplicative variation cannot flatten shadows or draw a
-    // bright outline across the ground at grazing camera angles.
-    return light*(1.+strokes*.025*detail);
+    vec2 brush=strokeCell(uv);
+    float value=max(dot(light,vec3(.2126,.7152,.0722)),.001);
+    float plane=floor(value*4.5+brush.x*.55)/4.5;
+    vec3 color=light*mix(1.,max(.035,plane)/value,.34);
+    color*=.86+brush.y*.26;
+    color=mix(shadowInk*.42,color,smoothstep(.004,.075,value));
+    float strokeLine=abs(fract((uv.x+uv.y*.58)*11.)-.5);
+    float aa=max(fwidth(strokeLine),.015);
+    float hatch=1.-smoothstep(.085-aa,.085+aa,strokeLine);
+    float dotDistance=length(fract(uv*8.)-.5);
+    float dots=1.-smoothstep(.16,.16+max(fwidth(dotDistance),.015),dotDistance);
+    float middle=step(.12,value)*(1.-step(.95,value));
+    float marks=middle*(step(.66,brush.x)*hatch*.2+step(brush.x,.22)*dots*.14);
+    color=mix(color,shadowInk,marks);
+    float dryEdge=step(.5,brush.y)*step(.88,1.-facing);
+    color=mix(color,edgeInk,dryEdge*.26);
+    return color;
   }
 `;

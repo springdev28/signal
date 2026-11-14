@@ -22,7 +22,8 @@ export function preparePaint() { brushTexture(); return textureReady!; }
 export function paintMaterial(material: THREE.MeshStandardMaterial, scale = 1) {
   material.userData.painted = true;
   material.userData.paintScale = scale;
-  // Keep each material's metal, ceramic, glass, and cloth response intact.
+  material.roughness = Math.max(.68, material.roughness);
+  material.metalness = Math.min(.35, material.metalness);
   material.onBeforeCompile = shader => {
     shader.uniforms.paintGrain = { value: brushTexture() };
     shader.uniforms.paintScale = { value: scale };
@@ -37,7 +38,7 @@ export function paintMaterial(material: THREE.MeshStandardMaterial, scale = 1) {
         texture2D(paintGrain, vPaintPosition.yz * paintScale).r,
         texture2D(paintGrain, vPaintPosition.xz * paintScale).r,
         texture2D(paintGrain, vPaintPosition.xy * paintScale).r), paintWeights);
-      diffuseColor.rgb *= mix(.93, 1.07, stroke);
+      diffuseColor.rgb *= mix(.84, 1.18, floor(clamp(stroke,0.,.99)*5.)/4.);
     `);
     shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `
       vec2 marksUV=surfaceStrokeUV(vPaintPosition)*max(paintScale,.75)*2.6;
@@ -46,7 +47,7 @@ export function paintMaterial(material: THREE.MeshStandardMaterial, scale = 1) {
       #include <opaque_fragment>
     `);
   };
-  material.customProgramCacheKey = () => 'natural-painted-v3-' + scale;
+  material.customProgramCacheKey = () => 'graphic-painted-v2-' + scale;
   return material;
 }
 

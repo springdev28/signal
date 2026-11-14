@@ -127,48 +127,45 @@ export function createAstra() {
   body.add(arm);
   paintModel(model, 2.2);
 
-  const reduced=matchMedia('(prefers-reduced-motion: reduce)');
-  let priorTime=0,gait=0,walkBlend=0;
-  const actionBlend={scan:0,pickup:0,assemble:0,talk:0};
-  function pose(time: number, walking: boolean|number, action: 'idle'|'scan'|'pickup'|'assemble'|'talk', amount: number) {
-    const dt=priorTime?Math.min(.05,Math.max(0,time-priorTime)):1/60;
-    priorTime=time;
-    const blend=1-Math.exp(-12*dt);
-    const speed=typeof walking==='number'?THREE.MathUtils.clamp(walking,0,1):Number(walking);
-    walkBlend+=(speed-walkBlend)*blend;
-    if(walkBlend<.001)walkBlend=0;
-    gait+=dt*(4+7*walkBlend)*walkBlend;
-    for(const key of Object.keys(actionBlend) as (keyof typeof actionBlend)[]){
-      const target=action===key?(key==='talk'?1:amount):0;
-      actionBlend[key]+=(target-actionBlend[key])*blend;
-    }
-    const idle=reduced.matches?0:1-walkBlend;
-    const stride=Math.sin(gait)*walkBlend;
-    const breath=Math.sin(time*1.65)*idle;
-    const glance=Math.sin(time*.54)*Math.sin(time*.21)*idle;
-    body.position.y = Math.abs(stride)*.038+breath*.009-actionBlend.pickup*.31;
-    body.rotation.x = -walkBlend*.07-actionBlend.pickup*.27-actionBlend.assemble*.14;
-    body.rotation.z = stride*.035+Math.sin(time*.73)*idle*.012;
-    head.rotation.y = stride*.045+glance*.18+Math.sin(time*3)*actionBlend.scan*.38;
-    head.rotation.x = breath*.012-actionBlend.pickup*.31-actionBlend.assemble*.16;
-    head.rotation.z = Math.sin(time*2)*actionBlend.talk*.05;
-    neck.rotation.x=-walkBlend*.045+breath*.012+Math.sin(time*3)*actionBlend.talk*.03;
-    neck.rotation.z=stride*.03+glance*.025;
-    cable.rotation.y = stride*.10+Math.sin(time*1.1)*idle*.04;
-    cable.rotation.z = Math.cos(time*1.4)*idle*.025;
+  function pose(time: number, walking: boolean, action: 'idle'|'scan'|'pickup'|'assemble'|'talk', amount: number) {
+    const stride = walking ? Math.sin(time * 11) : 0;
+    body.position.y = Math.abs(stride) * .045;
+    body.rotation.x = walking ? -.08 : 0;
+    body.rotation.z = stride * .046;
+    head.rotation.y = stride * .063+Math.sin(time*.67)*.045;
+    head.rotation.x = Math.sin(time*1.3)*.016;
+    neck.rotation.x=walking?-.055:Math.sin(time*.9)*.018;
+    neck.rotation.z=stride*.04+Math.sin(time*.6)*.02;
+    cable.rotation.y = stride * .11+Math.sin(time*1.4)*.045;
+    cable.rotation.z = Math.cos(time*1.6)*.03;
     for(const [i,iris] of irises.entries()){
-      iris.scale.setScalar(1-actionBlend.scan*.27+Math.sin(time*1.2+i*.3)*idle*.026);
-      iris.position.y=glance*.018;
+      iris.scale.setScalar(action==='scan'?1-amount*.27:1+Math.sin(time*1.2+i*.3)*.035);
+      iris.position.y=Math.sin(time*.7)*.012;
     }
     for(let i=0;i<hem.count;i++){
       const x=rest[i*3],y=rest[i*3+1],z=rest[i*3+2],weight=Math.max(0,1-y/1.55)**2;
-      hem.setXYZ(i,x+Math.sin(time*2.8+z*8)*weight*(walkBlend*.055+idle*.014),y,z+Math.sin(time*2.5+x*6)*weight*(walkBlend*.075+idle*.018));
+      hem.setXYZ(i,x+Math.sin(time*3+z*8)*weight*(walking?.07:.018),y,z+Math.sin(time*2.6+x*6)*weight*(walking?.09:.025));
     }
     hem.needsUpdate=true;
-    // Recalculate normals as the drape deforms so highlights follow the cloth.
-    drape.geometry.computeVertexNormals();
     for (const [i, leg] of legs.entries()) leg.rotation.x = stride * (i === 0 ? .64 : -.64);
-    arm.rotation.x = stride*.28+actionBlend.scan*1.1+actionBlend.pickup*.8+actionBlend.assemble*1.14;
+    arm.rotation.x = stride * .28;
+    if (action === 'scan') {
+      neck.rotation.z=Math.sin(time*3)*amount*.08;
+      head.rotation.y = Math.sin(time * 11) * amount * .42;
+      arm.rotation.x = amount * 1.1;
+    }
+    if (action === 'pickup') {
+      body.position.y = -amount * .31;
+      body.rotation.x = -amount * .27;
+      head.rotation.x = -amount * .31;
+      arm.rotation.x = amount * .8;
+    }
+    if (action === 'assemble') {
+      head.rotation.x = -amount * .16;
+      body.rotation.x = -amount * .14;
+      arm.rotation.x = amount * 1.14;
+    }
+    if(action==='talk'){neck.rotation.x=Math.sin(time*3)*.045;head.rotation.z=Math.sin(time*2)*.07;}
   }
   return { model, pose };
 }

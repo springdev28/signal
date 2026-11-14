@@ -41,18 +41,17 @@ export function createTerrain(scene: THREE.Scene, world: WorldId) {
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   Object.assign(sun.shadow.camera, { left: -45, right: 45, top: 45, bottom: -45, near: .5, far: 130 });
-  sun.shadow.bias = -.00015;
-  sun.shadow.normalBias = .025;
-  sun.shadow.radius = 2;
-  const fill = new THREE.DirectionalLight(0xb1cbd5, moon ? .9 : 1.35);
-  fill.position.set(13, 12, 18);
-  scene.add(group, atmosphere, sun, fill, new THREE.HemisphereLight(0xabc1cf, moon ? 0x343846 : 0x685146, moon ? .85 : 1.05));
+  sun.shadow.bias = -.0005;
+  sun.shadow.normalBias = .05;
+  const fill = new THREE.DirectionalLight(0x64abc6, moon ? .28 : .72);
+  fill.position.set(13, 9, 11);
+  scene.add(group, atmosphere, sun, fill, new THREE.HemisphereLight(0x779dab, moon ? 0x131520 : 0x3e253e, moon ? .35 : .63));
 
   const geometry = new THREE.PlaneGeometry(290, 290, 220, 220);
   geometry.rotateX(-Math.PI / 2);
   const positions = geometry.getAttribute('position'), colors: number[] = [];
-  const dark = new THREE.Color(moon ? 0x646975 : 0x795d4e);
-  const light = new THREE.Color(moon ? 0xa3a4a8 : 0xb49178);
+  const dark = new THREE.Color(moon ? 0x454c63 : 0x614f4e);
+  const light = new THREE.Color(moon ? 0xb8b7ba : 0xb58f70);
   for (let i = 0; i < positions.count; i++) {
     const x = positions.getX(i), z = positions.getZ(i);
     positions.setY(i, terrainHeight(x, z, world));

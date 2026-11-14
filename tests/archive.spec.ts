@@ -68,7 +68,7 @@ test('dust changes power balance, playback, and Solaris reacts',async({page})=>{
   await expect(page.getByRole('button',{name:'Talk to Solaris'})).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(page).toHaveURL(/opportunity\/$/);
-  await expect(page.locator('.rover-stage canvas')).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Opportunity',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Talk to Solaris'}).press('Enter');
   await expect(page.getByRole('checkbox',{name:'Mute ambient remarks'})).toBeChecked();
   await expect(page.getByRole('button',{name:'What did Opportunity find?'})).toBeVisible();

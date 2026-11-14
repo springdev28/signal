@@ -1,8 +1,9 @@
-# Omnecarta — Space Apps submission notes
+# Omnecarta
 
-Omnecarta tells the stories of hardware that stayed behind on the Moon and Mars. Start at the destination guides, then trace Opportunity’s journey from Eagle Crater to Perseverance Valley. Inspect a 3D rover, see the real images that helped scientists find evidence of ancient water, and try the dust and solar power experiment. Solaris offers context and links back to the archive sources.
+Omnecarta brings a public space archive and a playable 3D story together in one browser app. Visit the Moon and Mars guides and inspect the Lunar Roving Vehicle and Opportunity exhibits. In Play Story, help Astra locate Opportunity, recover three parts, and fit them on the workbench. Solaris offers clues and hints along the way. The reconstructed craft stays in My Collection on the device.
 
-- Site: https://springdev28.github.io/signal/
-- Source: https://github.com/springdev28/signal
-- Challenge resource used: [NASA Mars Exploration Rovers: Spirit and Opportunity](https://science.nasa.gov/mission/mars-exploration-rovers-spirit-and-opportunity/). It supports the rover exhibit’s mission facts, the dust experiment’s historical context, and authored Solaris answers.
-- Global Offer used: none.
+- [Open Omnecarta](https://lawngreen-donkey-344010.hostingersite.com/)
+- [Source](https://github.com/springdev28/signal)
+- [NASA Spirit & Opportunity](https://science.nasa.gov/mission/mars-exploration-rovers-spirit-and-opportunity/) supports the historical exhibit and the dust experiment. The search and recovery mission is fictional.
+
+The team used its existing Hostinger plan for deployment.

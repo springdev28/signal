@@ -1,10 +1,11 @@
-# Phase 1 verification
+# Omnecarta rebuild verification
 
-The production build and eight Playwright checks passed in Chrome on November 14, 2026, against both the local production build and the [published site](https://springdev28.github.io/signal/). The tests use a desktop viewport and a Pixel 7 mobile viewport.
+The web app includes Explore Omnecarta, Play Story and My Collection. Browser coverage runs in desktop Chrome and a mobile Chrome viewport with emulated touch. The production build uses Node.js 24 and Vite.
 
-- Direct routes and navigation: archive, Moon, Mars, comparison, Opportunity, and experiment. Both NASA Eyes launch URLs returned HTTP 200 with the expected route; the separate NASA viewer’s destination scene was not verified.
-- Rover exhibit: NASA model loads, keyboard controls rotate the view and select instrument details, and a forced model download failure leaves the credited fallback and instrument details usable.
-- Experiment: at 100% dust, sunlight drops from 100% to 20% and net change moves from +55 to −25 units. Pause holds the battery, and Reset restores the starting conditions.
-- Solaris: reacts to hardware and battery drain, answers suggested questions with a NASA source, and respects a persistent mute setting. Escape closes the dialog, returns focus, and can go up one level.
+- Open the Moon and Mars guides, compare their surface conditions, and inspect both exhibits before playing. Reload a direct exhibit route and confirm that browsing leaves My Collection empty.
+- Start Play Story at the homepage. Move Astra with the keyboard or touch direction controls, scan two landmarks, and follow distance, bearing, and signal strength to the wreck. Confirm that the graph receives distinct readings and a reload restores position and observations.
+- Let the timed scanner prompt expire, retry successfully, and separately verify the untimed alternative and reduced motion behavior.
+- Inspect and recover all three parts at separate positions. Reject a wrong mount and a wrong orientation. Fit all parts, reload My Collection, and confirm that it still contains one Opportunity record. Replay starts a fresh mission and preserves the collection. Dragging the camera onto its mast was checked separately in the 3D workbench.
+- Verify the keyboard exhibit controls, a forced viewer failure, the optional dust experiment, and links to approved NASA records.
 
-Record the walkthrough again with a preview running and `node scripts/walkthrough.mjs <output-folder>`. Install Chromium and the Playwright video recorder first with `npx playwright install chromium ffmpeg`.
+The public site links only to the approved NASA Space Science Data Coordinated Archive, Lunar Roving Vehicles, and Spirit & Opportunity entries. The two archived NASA images appear directly in the Spirit & Opportunity record. The other visuals are original illustrations.

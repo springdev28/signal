@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "description": "",
   "scripts": {
-    "test": "playwright test",
+    "test": "npm run test:unit && playwright test",
+    "test:unit": "node --experimental-strip-types scripts/check-odyssey-state.mjs && node --experimental-strip-types scripts/check-astra-joints.mjs && node scripts/check-flight-context.mjs && node scripts/check-solaris-guards.mjs && node scripts/check-astra-export.mjs",
     "dev": "vite",
     "build": "tsc --noEmit && vite build && node scripts/routes.mjs",
     "preview": "vite preview",

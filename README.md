@@ -24,3 +24,11 @@ For browser tests, install Chromium with `npx playwright install chromium`, buil
 The team used its existing Hostinger plan for deployment. No Space Apps Global Offer was used.
 
 Record an uninterrupted cockpit-to-collection journey with `OMNECARTA_TEST_URL=http://127.0.0.1:4173/ node scripts/record-flight.mjs`. The test uses actual controls and no mission-state shortcuts. It writes a WebM and scene screenshots to `artifacts/flight/`.
+
+### PlayCanvas Odyssey
+
+`/odyssey/` now runs the standalone PlayCanvas Engine. Start a fresh Mars flight with `/odyssey/?replay=1`, or the Moon chapter with `/odyssey/?chapter=moon&replay=1`. The existing atlas, orbit simulation and hardware routes remain available. `/omnecarta/?resource=apollo` opens the 13-group NASA mission library.
+
+Flight: A/D steer, W/S adjust throttle, U/J change altitude, E scans, L locks, Space brakes, M opens the optional record. Touch controls align with the modeled console. Scans require separated positions; locks carry through landing to ground recovery. Walk with WASD, recover nearby parts with E, and bring them to the field workbench. Rotate parts and choose their keyed mounts, or drag an aligned part toward its mount. Only completion awards the artifact.
+
+`npm run build` builds the production app. `scripts/pc-journey.mjs` pilots an actual fresh-session journey using browser input; `PC_RECORD=1` records it, and `PC_CHAPTER=moon` selects the Moon. `PC_URL` selects the server. `tests/playcanvas.spec.ts` covers input, touch, retry/untimed landing, Solaris pause and model fallback. The older flight tests target the replaced renderer and are retained as legacy references, not the current Odyssey acceptance suite.

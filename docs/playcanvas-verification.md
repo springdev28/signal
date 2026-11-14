@@ -1,11 +1,11 @@
-# PlayCanvas Odyssey implementation status
+# PlayCanvas verification
 
-Snapshot: 14 November 2026.
+Verified 14 November 2026. PlayCanvas Engine 2.24.1 standalone runtime; the Editor connector was occupied by another client.
 
-Odyssey now runs in PlayCanvas Engine 2.24.1. The existing atlas and exhibit routes retain their existing renderer. The PlayCanvas editor connector was occupied; this implementation uses the standalone Engine API.
+Production build and TypeScript pass. Fresh-session desktop journeys passed on Mars and the Moon: steering, throttle, first rough scan, displaced refinement, three locks without opening the mission record, player-flown approach, stabilized touchdown, hatch opening, Astra exit, recovery at all three pinned sites, walking to the workbench, rejection of an incorrect mount, rotation and seating of all parts, and persistence in My Collection. Neither run produced JavaScript errors.
 
-Implemented: modeled cockpit, circular radar and physical console controls, immediate steering and throttle, scans using position and bearing diversity, persistent surface locks, approach, touchdown interaction, hatch and Astra exit, recovery, keyed three-dimensional assembly, Mars and Moon chapter state. Records are optional and do not gate scans.
+A continuous Mars recording was captured. Full-size cockpit, ground, hatch, workbench and collection frames were inspected. Mobile cockpit and workbench layout checks, keyboard/touch regression checks, retry/untimed landing, model fallback and deployment verification are being completed separately; do not infer their status from the desktop journey.
 
-Verified for this snapshot: TypeScript check and production build; desktop and phone opening renders without JavaScript errors. The phone render still needs console placement refinement. Full mission interaction, continuous recording and production deployment have not yet been verified for this snapshot. Do not treat implementation as completed playthrough validation.
+All 13 supplied NASA resource groups are freely reachable from the mission library. Eight additional official NASA models and three original educational models were rendered and their component highlights checked; the existing MER and Lunar Roving Vehicle exhibits remain available. Exact model provenance is in assets.md and public/models/nasa/provenance.json.
 
-The glTF files in public/models are exports of the project ship, Astra, lunar rover, and the NASA VTAD MER model described in assets.md. Astra's updated underlying body rig uses the CC0 RobotExpressive source recorded in public/vendor/astra/MODEL-LICENSE.md and sources.json. The binocular head, neck, drape and cable are original project art. pc-export.html and pc-lunar-export.html are the export authoring views. The authored canyon is a fictional environment, not NASA topographic data.
+Known limits: authored terrain and clues are fictional, radar uncertainty is illustrative, the representative vehicle in a paired resource group is named in the exhibit, and Solaris free-form provider access requires server configuration. The cockpit is a browser game, not a NASA-certified flight simulator.

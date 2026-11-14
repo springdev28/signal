@@ -1,0 +1,38 @@
+import * as THREE from 'three';
+import {DRACOLoader} from 'three/addons/loaders/DRACOLoader.js';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {base,link,sources,asset} from './catalog';
+import {resources} from './library-data';
+import {originalInstrument} from './library-models';
+import {addLighting,bindOrbitButtons,fitDistance,mountViewport} from './scene';
+import {viewButtons} from './ui';
+import type {SolarisContext} from './solaris';
+import './library.css';
+export function libraryMarkup(){const id=new URLSearchParams(location.search).get('resource'),item=resources.find(r=>r.id===id)||resources[0];return `<article class="mission-library"><header class="library-heading"><a href="${link('atlas')}">← Omnecarta orbits</a><label>Mission library<select id="library-select" aria-label="NASA resource group">${resources.map(r=>`<option value="${r.id}" ${r.id===item.id?'selected':''}>${r.name}</option>`).join('')}</select></label></header><div class="library-layout"><section class="library-view" aria-label="Interactive ${item.object} exhibit"><div id="library-canvas"><img id="library-fallback" src="${base}media/library-${item.id}.png" alt="${item.object}"><p class="view-state" role="status">Loading ${item.object}…</p></div><div class="library-view-tools">${viewButtons()}</div><p class="library-gesture">Drag to orbit · pinch or scroll to zoom</p></section><aside class="library-detail"><p class="eyebrow">${item.world} · ${item.date}</p><h1>${item.object}</h1><p>${item.summary}</p><div class="library-parts">${item.parts.map((p,i)=>`<button data-library-part="${i}" aria-pressed="false">${p.name}</button>`).join('')}</div><div id="library-explanation" aria-live="polite"><p>Select a component to see what it does.</p></div><details><summary>Model provenance</summary><p>${item.model?'Official NASA 3D Resources model. Original geometry and supplied textures, with scene lighting added for this exhibit.':'Original educational model built from the supplied NASA mission record and photographs. Dimensions and deployment spacing are illustrative.'}</p></details><a href="${sources[item.id]}" target="_blank" rel="noreferrer">Supplied NASA mission record ↗</a></aside></div><nav class="library-index" aria-label="All 13 NASA resource groups">${resources.map(r=>`<a ${r.id===item.id?'aria-current="page"':''} href="${r.route?link(r.route):link('atlas')+'?resource='+r.id}">${r.name}</a>`).join('')}</nav></article>`;}
+export async function mountLibrary(context:SolarisContext){
+ const id=new URLSearchParams(location.search).get('resource'),item=resources.find(r=>r.id===id)||resources[0];
+ const select=document.querySelector<HTMLSelectElement>('#library-select')!;select.onchange=()=>{const r=resources.find(r=>r.id===select.value)!;location.href=r.route?link(r.route):link('atlas')+'?resource='+r.id;};context.subject=item.object;
+ if(item.route){location.replace(link(item.route));return;}
+ const host=document.querySelector<HTMLElement>('#library-canvas')!,frame=document.querySelector<HTMLElement>('.library-view')!;
+ let renderer:THREE.WebGLRenderer;
+ try{
+  const scene=new THREE.Scene();scene.background=new THREE.Color(0x060e16);addLighting(scene);
+  const camera=new THREE.PerspectiveCamera(38,1,.05,100);let controls:OrbitControls|undefined;
+  let radius=3;const reset=()=>{const d=fitDistance(camera,radius,.91);camera.position.set(d*.64,d*.38,d*.72);controls?.target.set(0,0,0);controls?.update();};renderer=mountViewport(host,camera,reset);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.18;controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.enablePan=false;controls.minDistance=2;controls.maxDistance=25;
+  const draco=new DRACOLoader().setDecoderPath(base+'vendor/draco/');const loader=new GLTFLoader().setDRACOLoader(draco);
+  const model=item.model?(await loader.loadAsync(base+'models/nasa/'+item.model+'.glb')).scene:originalInstrument(item.id);
+  if(!item.model){const grain=await new THREE.TextureLoader().loadAsync(asset('painted-surface.jpg'));grain.colorSpace=THREE.SRGBColorSpace;grain.wrapS=grain.wrapT=THREE.RepeatWrapping;model.traverse(n=>{if(n instanceof THREE.Mesh){const mats=Array.isArray(n.material)?n.material:[n.material];for(const m of mats){if(m instanceof THREE.MeshStandardMaterial){m.map=grain;m.roughness=.72;m.needsUpdate=true;}}}});}
+  const b=new THREE.Box3().setFromObject(model),center=b.getCenter(new THREE.Vector3()),size=b.getSize(new THREE.Vector3()),scale=5.2/Math.max(size.x,size.y,size.z);const pivot=new THREE.Group();pivot.add(model);model.position.sub(center);pivot.scale.setScalar(scale);scene.add(pivot);pivot.updateMatrixWorld(true);radius=new THREE.Box3().setFromObject(pivot).getBoundingSphere(new THREE.Sphere()).radius;
+  const named=(node:THREE.Object3D,pattern:string):boolean=>{const regex=new RegExp(pattern,'i');for(let n:THREE.Object3D|null=node;n;n=n.parent){if(regex.test(n.name)||regex.test(n.name.replaceAll('_','')))return true;if(n===model)break;}return false;};
+  const originals=new Map<THREE.Mesh,THREE.Material|THREE.Material[]>();model.traverse(n=>{if(n instanceof THREE.Mesh)originals.set(n,n.material);});
+  function choose(index:number){const part=item.parts[index];context.selection=part.name;document.querySelector('#library-explanation')!.innerHTML=`<h2>${part.name}</h2><p>${part.body}</p>`;for(const btn of document.querySelectorAll('[data-library-part]'))btn.setAttribute('aria-pressed',String((btn as HTMLElement).dataset.libraryPart===String(index)));let matches=0;
+   for(const [mesh,m]of originals){mesh.material=m;const pos=new THREE.Box3().setFromObject(mesh).getCenter(new THREE.Vector3());const match=part.match==='@upper'?pos.y>0:part.match==='@lower'?pos.y<=0:named(mesh,part.match);if(!match)continue;matches++;const highlighted=(Array.isArray(m)?m:[m]).map(old=>{const n=old.clone() as THREE.MeshStandardMaterial;if(n.emissive)n.emissive.set(0x1e7488);n.emissiveIntensity=.8;return n;});mesh.material=Array.isArray(m)?highlighted:highlighted[0];}
+   frame.dataset.highlighted=String(matches);
+  }
+  for(const btn of document.querySelectorAll<HTMLButtonElement>('[data-library-part]'))btn.onclick=()=>choose(Number(btn.dataset.libraryPart));
+  const mouse=new THREE.Vector2(),ray=new THREE.Raycaster();let start={x:0,y:0};renderer.domElement.addEventListener('pointerdown',e=>start={x:e.clientX,y:e.clientY});renderer.domElement.addEventListener('pointerup',e=>{if(Math.hypot(e.clientX-start.x,e.clientY-start.y)>8)return;const r=renderer.domElement.getBoundingClientRect();mouse.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(mouse,camera);const hit=ray.intersectObject(model,true)[0];if(hit){const y=hit.point.y;const index=item.parts.findIndex(p=>p.match==='@upper'?y>0:p.match==='@lower'?y<=0:named(hit.object,p.match));if(index>=0)choose(index);}});
+  reset();bindOrbitButtons(frame,controls,reset);frame.dataset.ready='true';frame.querySelector('[data-view-actions]')?.removeAttribute('hidden');document.querySelector<HTMLElement>('#library-fallback')!.hidden=true;host.querySelector<HTMLElement>('.view-state')!.hidden=true;
+  renderer.setAnimationLoop(()=>{controls!.update();renderer.render(scene,camera);});window.addEventListener('pagehide',()=>{renderer.setAnimationLoop(null);controls!.dispose();renderer.dispose();},{once:true});
+ }catch(e){frame.dataset.fallback='true';host.querySelector<HTMLElement>('.view-state')!.textContent='3D unavailable. Showing the same spacecraft as an illustration.';console.error(e);}
+}

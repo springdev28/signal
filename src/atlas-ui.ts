@@ -7,7 +7,7 @@ const names = { atlas: 'Omnecarta', moon: 'Moon', mars: 'Mars', compare: 'Compar
 export function atlasBar(active?: Page) {
   return `<div class="atlas-bar">
     <a class="atlas-brand" href="${routeLinkHref('atlas')}">${icon('layers',19)} <span>Omnecarta</span></a>
-    <nav class="atlas-tabs" aria-label="Atlas navigation">
+    <nav class="atlas-tabs" aria-label="Atlas navigation"><a href="${routeLinkHref('atlas')}?resource=apollo">Mission library</a>
       ${(['moon','mars','compare'] as const).map(id => active === id
         ? `<span aria-current="page">${names[id]}</span>` : routeLink(id, names[id])).join('')}
     </nav>

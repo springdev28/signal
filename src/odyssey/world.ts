@@ -29,3 +29,11 @@ export async function landscape(app:pc.AppBase,chapter:Chapter){
  for(let k=0;k<75;k++)for(const side of [-1,1]){const z=12-k*1.6,x=3+Math.sin(k*.043)*7+side*.55;primitive(root,'Pressed wheel track','box',[x,height(x,z)+.03,z],[.32,.025,.46],trackMat,[0,-Math.cos(k*.043)*12,0]);}
  return root;
 }
+
+// Smooth collision envelope follows the major authored ridges and spires.
+export function clearPosition(x:number,z:number,altitude:number){
+ let hit=false;
+ const ridges=[[-58,29,25,49,51],[65,0,28,55,46],[-71,-75,37,62,58],[78,-106,34,55,60],[-95,-184,44,66,67],[92,-229,52,74,58],[27,-106,4,28,4.2],[35,-111,3,18,3]];
+ for(const [cx,cz,w,h,d] of ridges){if(altitude>h+3)continue;const f=Math.pow(Math.max(.05,1-altitude/h),.38),rx=w*f+2,rz=d*f+2,dx=(x-cx)/rx,dz=(z-cz)/rz,n=Math.hypot(dx,dz);if(n<1){x=cx+(n?dx/n:1)*rx;z=cz+(n?dz/n:0)*rz;hit=true;}}
+ return {x,z,hit};
+}

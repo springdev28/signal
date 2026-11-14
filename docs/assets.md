@@ -42,3 +42,13 @@ The valley is an authored interpretation, with continuous ground and distinct sc
 ## Project identity
 
 The wordmark and browser icon are unmodified SVG exports of the user's [Figma logo](https://www.figma.com/design/6W7En8vWZ7eBIQzzTOEygW?node-id=1-29): inverse wordmark `1:29` (274 × 76) and dark app icon `1:59` (76 × 76). `public/brand/signal-wordmark.svg` preserves all authored layers; the header scales the complete artwork uniformly. `public/favicon.svg` is the matching app icon. These are project identity assets, not NASA assets.
+
+## PlayCanvas Odyssey and the mission library
+
+`src/odyssey` uses PlayCanvas Engine 2.24.1 through the standalone AppBase API. Its authored canyon has a navigable corridor, sculpted layered ridges, twin spires and tracks. It is a fictional, compressed environment, not NASA elevation data. The flight solver measures scan separation and bearing diversity; uncertainty and the optional graph come from those samples. Radar is illustrative rather than a physical radio-frequency simulation.
+
+`public/models/astra.glb`, `ship.glb`, the MER components, and the lunar components are engine-independent glTF exports from the project's authored assets. The exports preserve geometry and material textures. Astra contains four baked hierarchical motion clips, with runtime digital eye animation. `scripts/pc-export.html` and `pc-lunar-export.html` are the authoring exports. The Astra body rig source and its CC0 license, together with the Ammo license, are recorded in `public/vendor/astra`. The original binocular head, segmented neck, antennae, cape and cable remain project art. The workbench uses the same extracted components as surface recovery.
+
+Eight additional official NASA models support the approved resource groups: Apollo Lunar Module, Dawn, InSight with deployed panels, Ingenuity, Kepler, NEAR Shoemaker, Pioneer 10, and Viking Lander. They come from NASA's official NASA-3D-Resources repository; exact source URLs, sizes and SHA-256 hashes are in `public/models/nasa/provenance.json`. They retain NASA's mesh and texture data. Public citations continue to point only to the supplied mission record URLs in `src/references.mjs`. NASA's representative models illustrate the related mission groups; they are not separate exact models of every vehicle in a paired group.
+
+The ALSEP station, Surveyor 3 and Sojourner exhibits are original educational models in `src/library-models.ts`, informed by the approved NASA records. Instrument placement and relative silhouettes are represented; dimensions and ALSEP deployment spacing are illustrative. All library fallback images are direct browser captures of the same rendered objects. Browsing or selecting an instrument never adds a collection item.

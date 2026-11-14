@@ -12,6 +12,7 @@ import './celestial-art.css';
 import './experience.css';
 import './gameplay.css';
 import './brand.css';
+import './library.css';
 import { base, destinations, exhibits, link, paths, sources, type Page } from './catalog';
 import { atlasWorld, compareWorlds, hardwareExhibit, mountExhibit, mountWorld } from './atlas-ui';
 import { experimentMarkup, mountExperiment } from './experiment';
@@ -39,9 +40,10 @@ if(page==='story'&&query.has('replay')){
   if(query.get('chapter')!=='moon')history.replaceState(null,'',location.pathname+'?replay=1');
 }
 const surface = (page === 'moon' || page === 'mars') && query.has('surface');
-const orbital = page === 'home' || page === 'atlas';
+const library=page==='atlas'&&query.has('resource');
+const orbital = page === 'home' || (page === 'atlas'&&!library);
 const flight=page==='story'&&!query.has('deploy')&&loadStory().phase==='briefing';
-document.body.dataset.interface = page==='story'?'playcanvas':orbital ? 'orbit' : surface ? 'surface' : ['moon','mars'].includes(page) ? 'world' : ['opportunity','lunar','collection'].includes(page) ? 'hardware' : 'reading';
+document.body.dataset.interface = library?'library':page==='story'?'playcanvas':orbital ? 'orbit' : surface ? 'surface' : ['moon','mars'].includes(page) ? 'world' : ['opportunity','lunar','collection'].includes(page) ? 'hardware' : 'reading';
 const app = document.querySelector<HTMLDivElement>('#app')!;
 const wordmark = `<a class="wordmark" href="${link('home')}" aria-label=">_signal home"><img class="brand-art" src="${base}brand/signal-wordmark.svg" alt="" width="274" height="76"></a>`;
 
@@ -53,6 +55,7 @@ const explore = `<div class="explore-menu" id="explore-menu">
   </div></div>`;
 
 async function content() {
+  if(library)return (await import('./library')).libraryMarkup();
   if (orbital) return orbitMarkup(false, page === 'home');
   if (surface) return surfaceMarkup(page as 'moon' | 'mars');
   switch (page) {
@@ -114,7 +117,7 @@ menu.addEventListener('focusout', event => {
 
 mountSolaris(context);
 mountNavigationMotion();
-if (orbital) {
+if(library){await (await import('./library')).mountLibrary(context);}else if (orbital) {
   mountOrbits(context, false).catch(() => {
     document.querySelector('#orbital-space .view-state')!.textContent = 'Orbital view unavailable. Choose Moon or Mars below.';
     for (const button of document.querySelectorAll<HTMLButtonElement>('[data-world]')) button.addEventListener('click', () => { location.href = link(button.dataset.world as 'moon' | 'mars'); });

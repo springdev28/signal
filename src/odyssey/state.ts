@@ -1,6 +1,6 @@
 export type Chapter='mars'|'moon';
 export type Stage='flight'|'approach'|'descent'|'landed'|'exit'|'walk'|'recovery'|'assembly'|'complete';
-export type Contact={id:string;name:string;x:number;z:number;mount:string;angle:number;clue:string;samples:{x:number;z:number}[];radius:number;locked:boolean;recovered:boolean;fitted:boolean};
+export type Contact={id:string;name:string;x:number;z:number;mount:string;angle:number;clue:string;samples:{x:number;z:number;radius?:number}[];radius:number;locked:boolean;recovered:boolean;fitted:boolean};
 export type Expedition={version:2;chapter:Chapter;stage:Stage;x:number;z:number;altitude:number;heading:number;contacts:Contact[];history:string[];playerX:number;playerZ:number};
 export const landing={x:0,z:-83};
 export const saveKey=(chapter:Chapter)=>`signal-pc-odyssey-v2-${chapter}`;
@@ -28,6 +28,7 @@ export function scan(s:Expedition,c:Contact):'rough'|'refined'|'same' {
  c.samples.push({x:s.x,z:s.z});let baseline=0,angle=0;
  for(const a of c.samples)for(const b of c.samples){baseline=Math.max(baseline,Math.hypot(a.x-b.x,a.z-b.z));const d=Math.atan2(c.x-a.x,c.z-a.z)-Math.atan2(c.x-b.x,c.z-b.z);angle=Math.max(angle,Math.abs(Math.atan2(Math.sin(d),Math.cos(d))));}
  c.radius=Math.max(1.1,31/(1+baseline/10+angle*14+(c.samples.length-1)*1.5));
+ c.samples[c.samples.length-1].radius=c.radius;
  persist(s);return c.samples.length===1?'rough':'refined';
 }
 export const lockable=(c:Contact)=>c.samples.length>=2&&c.radius<=5;

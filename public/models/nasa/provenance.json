@@ -1,0 +1,50 @@
+[
+  {
+    "id": "apollo",
+    "source": "https://raw.githubusercontent.com/nasa/NASA-3D-Resources/master/3D%20Models/Apollo%20Lunar%20Module/Apollo%20Lunar%20Module.glb",
+    "bytes": 716840,
+    "sha256": "379101dfcee399267addf771709107c35e826b0b9e5233272f123e4c8a585c4e"
+  },
+  {
+    "id": "dawn",
+    "source": "https://raw.githubusercontent.com/nasa/NASA-3D-Resources/master/3D%20Models/Dawn/Dawn.glb",
+    "bytes": 927020,
+    "sha256": "411249aed791994b6a2014894ad6bd7ca0445dbcf6d5342af9edc5df988f04b7"
+  },
+  {
+    "id": "insight",
+    "source": "https://raw.githubusercontent.com/nasa/NASA-3D-Resources/master/3D%20Models/InSight%20Cruise%20Lander/InSight%20Cruise%20Lander%20%28panels%20deployed%29.glb",
+    "bytes": 3948936,
+    "sha256": "4e4c0c8b034de9f265d2e0b52bd7547254b5547eb09edc97e694b3d990849fb8"
+  },
+  {
+    "id": "ingenuity",
+    "source": "https://raw.githubusercontent.com/nasa/NASA-3D-Resources/master/3D%20Models/Ingenuity%20Mars%20Helicopter/Ingenuity%20Mars%20Helicopter.glb",
+    "bytes": 2019408,
+    "sha256": "9e5a5398ab335eae7d46335085301ce46fb7de052300b645debe8bac6d39f2b5"
+  },
+  {
+    "id": "kepler",
+    "source": "https://raw.githubusercontent.com/nasa/NASA-3D-Resources/master/3D%20Models/Kepler%20%28A%29/Kepler%20%28A%29.glb",
+    "bytes": 2003276,
+    "sha256": "382014d90e2cf3e1f23e931d233547e652fe3629fddfb5acb8a99e2ceb72ff19"
+  },
+  {
+    "id": "near",
+    "source": "https://raw.githubusercontent.com/nasa/NASA-3D-Resources/master/3D%20Models/NEAR%20Shoemaker/NEAR%20Shoemaker.glb",
+    "bytes": 701808,
+    "sha256": "f3de2f87c97685b207be97e80d7cdca37d1567dd68204e1feb2d85f90e3adb0c"
+  },
+  {
+    "id": "pioneer",
+    "source": "https://raw.githubusercontent.com/nasa/NASA-3D-Resources/master/3D%20Models/Pioneer%2010/Pioneer%2010.glb",
+    "bytes": 2049840,
+    "sha256": "81443a7fa01cca0dda878cd27692b3307f9c332c4eb8e55a844499d7b350573c"
+  },
+  {
+    "id": "viking",
+    "source": "https://raw.githubusercontent.com/nasa/NASA-3D-Resources/master/3D%20Models/Viking%20Lander/Viking%20Lander.glb",
+    "bytes": 1849384,
+    "sha256": "1233dc2c96a1c0b08ca9a20f7ed9c09e0223f06f14f6ae6371349504c1929149"
+  }
+]

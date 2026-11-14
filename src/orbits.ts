@@ -13,6 +13,7 @@ export function orbitMarkup(odyssey = false, home = false) {
       <h1>${odyssey ? 'A signal from Mars.' : home ? 'The silence<br>has a signal.' : 'Chart your descent.'}</h1>
       <p>${odyssey ? 'Locate Mars. Find the transmission. Deploy Astra.' : 'Choose a world in orbit. Find a site. Step onto the surface.'}</p>
     </header>
+    ${!home?`<a class="library-link" href="${link('atlas')}?resource=apollo">Mission library · 13 NASA groups ↗</a>`:''}
     <div class="orbital-targets" aria-label="Destinations">
       <button class="world-target" data-world="moon" aria-pressed="false"><span class="target-disc" style="background-image:url('${asset('moon-albedo.webp')}')"></span><span>Moon<small>Hadley–Apennine</small></span>${icon('arrow',18)}</button>
       <button class="world-target" data-world="mars" aria-pressed="false"><span class="target-disc" style="background-image:url('${asset('mars-albedo.webp')}')"></span><span>Mars<small>${odyssey ? 'Unresolved transmission' : 'Meridiani Planum'}</small></span>${icon('arrow',18)}</button>

@@ -20,6 +20,14 @@ test('touchdown pauses for Solaris and supports retry and untimed stabilization'
  test.setTimeout(95000);const s=fresh('mars');Object.assign(s,{stage:'approach',x:0,z:-83,altitude:8});s.contacts.forEach(c=>{c.locked=true;c.radius=2;c.samples=[{x:0,z:74},{x:25,z:35}];});await page.addInitScript(s=>localStorage.setItem('signal-pc-odyssey-v2-mars',JSON.stringify(s)),s);
  await page.goto('./odyssey/');await expect(page.locator('#pc-odyssey')).toHaveAttribute('data-ready','true',{timeout:60000});await page.locator('#pc-interact').click();await page.getByRole('button',{name:'Solaris',exact:true}).click();await page.waitForTimeout(6500);await page.getByRole('button',{name:'Close Solaris'}).click();await expect(page.locator('#pc-stabilize')).toBeVisible();await expect(page.locator('#pc-retry')).toBeVisible({timeout:15000});await page.locator('#pc-retry').click();await page.locator('#pc-untimed').click();await page.waitForTimeout(7500);await expect(page.locator('#pc-stabilize')).toBeVisible();await page.locator('#pc-stabilize').click();await expect(page.locator('#pc-odyssey')).toHaveAttribute('data-stage','landed');
 });
+test('moon reconstruction replays the moon chapter and leaves a mars save intact',async({page})=>{
+ await page.addInitScript(()=>localStorage.setItem('signal-pc-odyssey-v2-mars',JSON.stringify({version:2,chapter:'mars',stage:'flight',x:12,z:34,altitude:24,heading:0,playerX:0,playerZ:-78,history:[],contacts:[]})));
+ await page.goto('./odyssey/?chapter=moon&replay=1');
+ await expect(page.locator('#pc-replay')).toHaveAttribute('href',/chapter=moon/);
+ await expect(page.locator('#pc-replay')).toHaveAttribute('href',/replay=1/);
+ expect(JSON.parse(await page.evaluate(()=>localStorage.getItem('signal-pc-odyssey-v2-mars')!)).x).toBe(12);
+ expect(JSON.parse(await page.evaluate(()=>localStorage.getItem('signal-pc-odyssey-v2-moon')!)).chapter).toBe('moon');
+});
 test('mission library is free to browse and has same-object model fallback',async({page})=>{
  await page.route('**/models/nasa/apollo.glb',route=>route.abort());await page.goto('./omnecarta/?resource=apollo');await expect(page.locator('.library-view')).toHaveAttribute('data-fallback','true');await expect(page.locator('#library-fallback')).toBeVisible();expect(await page.locator('#library-fallback').evaluate((i:HTMLImageElement)=>i.naturalWidth)).toBeGreaterThan(100);await expect(page.locator('#library-select option')).toHaveCount(13);expect(await page.evaluate(()=>localStorage.getItem('signal-pc-collection-v1'))).toBeNull();
 });

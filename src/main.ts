@@ -64,7 +64,7 @@ async function content() {
     case 'opportunity': case 'lunar': return hardwareExhibit(page);
     case 'experiment': return experimentMarkup();
     case 'collection': return (await import('./collection')).collectionMarkup();
-    case 'story': return (await import('./odyssey/game')).odysseyMarkup();
+    case 'story': return (await import('./odyssey/game')).odysseyMarkup(query.get('chapter')==='moon'?'moon':'mars');
   }
 }
 

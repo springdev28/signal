@@ -4,6 +4,7 @@ export type Contact={id:string;name:string;x:number;z:number;mount:string;angle:
 export type Expedition={version:2;chapter:Chapter;stage:Stage;x:number;z:number;altitude:number;heading:number;contacts:Contact[];history:string[];playerX:number;playerZ:number};
 export const landing={x:0,z:-83};
 export const saveKey=(chapter:Chapter)=>`signal-pc-odyssey-v2-${chapter}`;
+export const replayQuery=(chapter:Chapter)=>chapter==='moon'?'?chapter=moon&replay=1':'?replay=1';
 export function fresh(chapter:Chapter):Expedition {
  const moon=chapter==='moon';
  return {version:2,chapter,stage:'flight',x:0,z:74,altitude:24,heading:0,playerX:0,playerZ:-78,history:[],contacts:[

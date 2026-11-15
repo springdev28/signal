@@ -1,13 +1,13 @@
 import * as pc from 'playcanvas';
 import {base,asset,link,sources} from '../catalog';
 import type {SolarisContext} from '../solaris';
-import {fresh,load,persist,scan,lockable,award,landing,saveKey,type Chapter,type Contact} from './state';
+import {fresh,load,persist,scan,lockable,award,landing,saveKey,replayQuery,type Chapter,type Contact} from './state';
 import {color,height,landscape,material,model,primitive,beam,clearPosition} from './world';
 import {cockpit} from './cockpit';
 import {sky,paintCraft,expressiveEyes} from './presentation';
 import './odyssey.css';
 
-export function odysseyMarkup(){return `<section id="pc-odyssey" aria-label="Odyssey flight and surface simulation">
+export function odysseyMarkup(chapter:Chapter='mars'){return `<section id="pc-odyssey" aria-label="Odyssey flight and surface simulation">
  <canvas id="pc-canvas" tabindex="0" aria-label="Pilot the ship with A and D. W and S change throttle. E scans. L locks a contact. H opens controls."></canvas>
  <p id="pc-loading" role="status">Preparing the flight deck…</p><h1 class="sr-only">Odyssey</h1>
  <div id="pc-objective" aria-live="polite"></div><div id="pc-caption" aria-live="polite"></div><div id="pc-hit-layer"></div>
@@ -17,13 +17,14 @@ export function odysseyMarkup(){return `<section id="pc-odyssey" aria-label="Ody
  <div id="pc-height"><button data-drive="rise" aria-label="Increase altitude">↑</button><button data-drive="fall" aria-label="Decrease altitude">↓</button></div>
  <dialog id="pc-record" aria-labelledby="pc-record-title"><div class="dialog-bar"><h2 id="pc-record-title">Mission record</h2><button id="pc-record-close" aria-label="Close mission record">×</button></div><div id="pc-record-body"></div></dialog>
  <section id="pc-bench" hidden aria-label="Assembly controls"><div class="pc-bench-heading"><h2>Workbench</h2><button id="pc-bench-close" aria-label="Close workbench controls">×</button></div><p id="pc-fit-clue"></p><label>Recovered part<select id="pc-part"></select></label><label>Mount<select id="pc-mount"><option value="mast">Mast</option><option value="deck">Deck</option><option value="axle">Right axle</option></select></label><div class="pc-fit-row"><button id="pc-rotate">Rotate 45°</button><output id="pc-angle">0°</output><button id="pc-fit">Fit part</button></div><p id="pc-feedback" aria-live="polite"></p><div class="pc-view-row"><button id="pc-orbit-left" aria-label="Orbit workbench left">↶</button><button id="pc-orbit-right" aria-label="Orbit workbench right">↷</button><button id="pc-zoom-in" aria-label="Zoom in on workbench">+</button><button id="pc-zoom-out" aria-label="Zoom out from workbench">−</button><button id="pc-reset-view">Reset view</button></div></section>
- <div id="pc-cutscene" hidden></div><div id="pc-completion" hidden><h2>Reconstruction complete</h2><a href="${link('collection')}" class="button primary">My Collection</a><a href="${link('story')}?replay=1" class="button">New flight</a></div>
+ <div id="pc-cutscene" hidden></div><div id="pc-completion" hidden><h2>Reconstruction complete</h2><a href="${link('collection')}" class="button primary">My Collection</a><a id="pc-replay" href="${link('story')}${replayQuery(chapter)}" class="button">New flight</a></div>
  </section>`;}
 
 export async function mountOdyssey(context:SolarisContext){
  const host=document.querySelector<HTMLElement>('#pc-odyssey')!,canvas=host.querySelector<HTMLCanvasElement>('#pc-canvas')!;
  const $=<T extends HTMLElement=HTMLElement>(s:string)=>host.querySelector<T>(s)!;
  const query=new URLSearchParams(location.search),chapter:Chapter=query.get('chapter')==='moon'?'moon':'mars';
+ $<HTMLAnchorElement>('#pc-replay').href=link('story')+replayQuery(chapter);
  let state=query.has('replay')?fresh(chapter):load(chapter);persist(state);query.delete('replay');history.replaceState(null,'',location.pathname+(query.size?'?'+query:''));
  let app:pc.AppBase;
  try{const device=await pc.createGraphicsDevice(canvas,{deviceTypes:[pc.DEVICETYPE_WEBGL2],antialias:true,alpha:false});device.maxPixelRatio=1;

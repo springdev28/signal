@@ -12,7 +12,7 @@ export const paths = {
 export type Page = keyof typeof paths;
 export type WorldId = 'moon' | 'mars';
 export type HardwareId = 'opportunity' | 'lunar';
-export const base = import.meta.env.BASE_URL;
+export const base = import.meta.env?.BASE_URL ?? '/';
 export const link = (page: Page) => base + paths[page];
 export const asset = (name: string) => base + 'media/' + name;
 

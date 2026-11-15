@@ -3,6 +3,7 @@ import {flyJourney} from '../scripts/flight-journey.mjs';
 // This journey has a separate continuous video. Disable per-action trace screenshots
 // so their capture cost does not interfere with held flight controls.
 test.use({trace:'off'});
+test.skip(true, 'Legacy Three.js Odyssey HUD was replaced by PlayCanvas; see tests/playcanvas.spec.ts');
 
 test('clues and separated flight scans carry locks through touchdown, recovery and assembly',async({page,isMobile})=>{
  test.setTimeout(420000);

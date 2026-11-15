@@ -1,5 +1,7 @@
 import {test,expect} from '@playwright/test';
 
+test.skip(true, 'Legacy Three.js Odyssey HUD was replaced by PlayCanvas; see tests/playcanvas.spec.ts');
+
 test('completion keeps the assembled craft visible and offers useful next actions',async({page})=>{
  await page.addInitScript(()=>localStorage.setItem('omnecarta-story-v1',JSON.stringify({version:1,phase:'complete',x:9,z:-5,observed:[0,1],collected:['camera','solar','wheel'],fitted:['camera','solar','wheel'],samples:[],history:[]})));
  await page.goto('./odyssey/');await page.locator('#mission-stage canvas').waitFor();

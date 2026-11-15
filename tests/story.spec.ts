@@ -2,6 +2,8 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { walkTo } from './ground-navigation';
 
+test.skip(true, 'Legacy Three.js Odyssey HUD was replaced by PlayCanvas; see tests/playcanvas.spec.ts');
+
 async function location(page:Page){
   const label=await page.locator('#field-position').innerText();
   const match=label.match(/(\d+) m ([EW]) · (\d+) m ([NS])/);

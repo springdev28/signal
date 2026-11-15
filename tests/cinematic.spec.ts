@@ -1,5 +1,7 @@
 import {test,expect} from '@playwright/test';
 
+test.skip(true, 'Legacy Three.js Odyssey HUD was replaced by PlayCanvas; see tests/playcanvas.spec.ts');
+
 test('windshield owns the frame and live instruments share the lower console',async({page})=>{
  await page.goto('./odyssey/?replay=1');await page.locator('#start-survey').click();
  const canvas=(await page.locator('#flight-stage canvas').boundingBox())!,consoleBox=(await page.locator('#flight-instruments').boundingBox())!,radar=(await page.locator('#flight-radar').boundingBox())!;
